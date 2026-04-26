@@ -177,14 +177,14 @@ export default function Import() {
                   className="hover:bg-background/50 transition-colors"
                 >
                   <td className="px-4 py-3 text-sm font-mono text-muted-foreground">
-                    {tx.date}
+                    {tx.date.slice(0, 10)}
                   </td>
                   <td className="px-4 py-3 text-sm">{tx.description}</td>
                   <td
                     className={`px-4 py-3 text-sm font-mono ${tx.amount >= 0 ? "text-primary" : "text-destructive"}`}
                   >
-                    {tx.amount >= 0 ? "+" : ""}
-                    {tx.amount.toFixed(2)}
+                    {Number(tx.amount) >= 0 ? "+" : ""}
+                    {Number(tx.amount).toFixed(2)}
                   </td>
                 </tr>
               ))}

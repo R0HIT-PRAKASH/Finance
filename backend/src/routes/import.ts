@@ -15,31 +15,36 @@ function parseBMOChequing(content: string): ParsedTransaction[] {
   const lines = content
     .split("\n")
     .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+    .filter((l) => l.length > 0); // this removes blank lines
 
-  // Skip header row
+  // Now skip the header row (first non-empty line)
   const dataLines = lines.slice(1);
 
-  return dataLines.map((line) => {
-    // Split by comma but respect quoted fields
-    const cols = line.match(/('.*?'|[^,]+)/g)?.map((c) => c.trim()) ?? [];
+  console.log("Total lines after filtering:", dataLines.length);
+  console.log("First data line:", dataLines[0]);
 
-    const transactionType = cols[1] as "CREDIT" | "DEBIT";
-    const rawDate = cols[2]; // YYYYMMDD
-    const amount = parseFloat(cols[3]);
-    const description = cols[4]?.replace(/\s+/g, " ").trim() ?? "";
-
-    // Convert YYYYMMDD to YYYY-MM-DD
-    const date = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
-
-    return { date, amount, description, type: transactionType };
-  });
+  return dataLines
+    .filter((line) => {
+      const cols = line.match(/('.*?'|[^,]+)/g)?.map((c) => c.trim()) ?? [];
+      return /^\d{8}$/.test(cols[2]);
+    })
+    .map((line) => {
+      const cols = line.match(/('.*?'|[^,]+)/g)?.map((c) => c.trim()) ?? [];
+      const transactionType = cols[1] as "CREDIT" | "DEBIT";
+      const rawDate = cols[2];
+      const amount = parseFloat(cols[3]);
+      const description = cols[4]?.replace(/\s+/g, " ").trim() ?? "";
+      const date = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
+      return { date, amount, description, type: transactionType };
+    });
 }
 
 // POST /import/bmo-chequing
 router.post("/bmo-chequing", async (req: Request, res: Response) => {
   const { account_id, csv_content } = req.body;
-
+  console.log("Received account_id:", account_id);
+  console.log("CSV content length:", csv_content?.length);
+  console.log("First 200 chars:", csv_content?.slice(0, 200));
   if (!account_id || !csv_content) {
     res.status(400).json({ error: "account_id and csv_content are required" });
     return;
