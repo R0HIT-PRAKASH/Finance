@@ -25,6 +25,24 @@ export const api = {
     flat: () => request<FlatCategory[]>("/categories/flat"),
   },
   health: () => request<{ status: string }>("/health"),
+  transactions: {
+    list: (filters: TransactionFilters = {}) => {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") {
+          params.append(k, String(v));
+        }
+      });
+      return request<{ transactions: Transaction[]; total: number }>(
+        `/transactions?${params}`,
+      );
+    },
+    updateCategory: (id: number, category_id: number, save_rule: boolean) =>
+      request<Transaction>(`/transactions/${id}/category`, {
+        method: "PATCH",
+        body: JSON.stringify({ category_id, save_rule }),
+      }),
+  },
 };
 
 export type Account = {
@@ -50,4 +68,30 @@ export type FlatCategory = {
   id: number;
   name: string;
   parent_name: string | null;
+};
+
+export type Transaction = {
+  id: number;
+  date: string;
+  account_id: number;
+  account_name: string;
+  amount: number;
+  currency: string;
+  merchant_name: string | null;
+  description: string;
+  category_id: number | null;
+  category_name: string | null;
+  category_parent_name: string | null;
+  categorization_source: string | null;
+  categorization_confidence: string | null;
+};
+
+export type TransactionFilters = {
+  account_id?: number;
+  category_id?: number;
+  uncategorized?: boolean;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
 };

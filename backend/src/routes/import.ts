@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { parse } from "csv-parse";
 import pool from "../db/pool";
+import { TransactionRepository } from "../repositories/transactions.repository";
 
 const router = Router();
 
@@ -63,17 +64,19 @@ router.post("/bmo-chequing", async (req: Request, res: Response) => {
     try {
       await client.query("BEGIN");
 
-      const inserted = [];
-      for (const tx of transactions) {
-        const result = await client.query(
-          `INSERT INTO transactions 
-            (date, account_id, amount, currency, description, merchant_name)
-           VALUES ($1, $2, $3, 'CAD', $4, $5)
-           RETURNING *`,
-          [tx.date, account_id, tx.amount, tx.description, tx.description],
-        );
-        inserted.push(result.rows[0]);
-      }
+      const inserted = await TransactionRepository.insertMany(
+        transactions.map((tx) => ({
+          date: tx.date,
+          account_id,
+          amount: tx.amount,
+          currency: "CAD",
+          description: tx.description,
+          merchant_name: tx.description,
+        })),
+      );
+      res
+        .status(201)
+        .json({ imported: inserted.length, transactions: inserted });
 
       await client.query("COMMIT");
       res

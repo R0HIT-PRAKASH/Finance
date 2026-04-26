@@ -2,11 +2,13 @@ import { Routes, Route, NavLink } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
 import Import from "./pages/Import";
+import Transactions from "./pages/Transactions";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: "◈" },
   { to: "/accounts", label: "Accounts", icon: "◉" },
   { to: "/import", label: "Import", icon: "◎" },
+  { to: "/transactions", label: "Transactions", icon: "◎" },
 ];
 
 export default function App() {
@@ -46,6 +48,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/import" element={<Import />} />
+          <Route path="/transactions" element={<Transactions />} />
         </Routes>
       </main>
     </div>

@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import accountsRouter from "./routes/accounts";
 import categoriesRouter from "./routes/categories";
 import importRouter from "./routes/import";
+import transactionsRouter from "./routes/transactions";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.get("/health", (req, res) => {
 app.use("/accounts", accountsRouter);
 app.use("/categories", categoriesRouter);
 app.use("/import", importRouter);
+app.use("/transactions", transactionsRouter);
 
 app.listen(PORT, () => {
   console.log(`FinTrack backend running on port ${PORT}`);
