@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16
+    container_name: fintrack_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fintrack
+      POSTGRES_PASSWORD: fintrack
+      POSTGRES_DB: fintrack
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: fintrack_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://fintrack:fintrack@db:5432/fintrack
+      PORT: 3001
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+    volumes:
+      - ./backend/src:/app/src
+
+  frontend:
+    build: ./frontend
+    container_name: fintrack_frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:3001
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+
+volumes:
+  postgres_data:
