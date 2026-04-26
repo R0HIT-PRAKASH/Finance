@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import accountsRouter from "./routes/accounts";
 import categoriesRouter from "./routes/categories";
+import importRouter from "./routes/import";
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.get("/health", (req, res) => {
 // Routes
 app.use("/accounts", accountsRouter);
 app.use("/categories", categoriesRouter);
+app.use("/import", importRouter);
 
 app.listen(PORT, () => {
   console.log(`FinTrack backend running on port ${PORT}`);

@@ -4,4 +4,5 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 EXPOSE 3001
+ENV CHOKIDAR_USEPOLLING=true
 CMD ["npm", "run", "dev"]
