@@ -3,6 +3,7 @@
 Personal finance dashboard — single source of truth for all your accounts.
 
 ## Stack
+
 - **Backend:** Node.js + TypeScript + Express
 - **Database:** PostgreSQL
 - **Frontend:** React + Recharts
@@ -12,28 +13,37 @@ Personal finance dashboard — single source of truth for all your accounts.
 ## Getting Started
 
 ### Prerequisites
+
 - Docker + Docker Compose
 - Node.js 20+ (for local development outside Docker)
+
+### How to query DB directly
+
+`docker compose exec db psql -U fintrack -d fintrack`
 
 ### Setup
 
 1. **Clone and configure environment**
+
    ```bash
    cp .env.example .env
    # Add your ANTHROPIC_API_KEY to .env
    ```
 
 2. **Start the stack**
+
    ```bash
    docker compose up -d
    ```
 
 3. **Run migrations**
+
    ```bash
    docker compose exec backend npm run migrate
    ```
 
 4. **Seed default categories**
+
    ```bash
    docker compose exec backend npm run seed
    ```
@@ -78,15 +88,15 @@ fintrack/
 
 ## Schema
 
-| Table | Purpose |
-|---|---|
-| `accounts` | All financial accounts (bank, credit, investment) |
-| `transactions` | Every cash movement |
-| `holdings` | Security positions per account per date |
-| `prices` | Security prices over time |
-| `exchange_rates` | CAD/USD (and future currencies) |
-| `categories` | Nested spending categories |
-| `merchant_rules` | Learned merchant → category mappings |
+| Table            | Purpose                                           |
+| ---------------- | ------------------------------------------------- |
+| `accounts`       | All financial accounts (bank, credit, investment) |
+| `transactions`   | Every cash movement                               |
+| `holdings`       | Security positions per account per date           |
+| `prices`         | Security prices over time                         |
+| `exchange_rates` | CAD/USD (and future currencies)                   |
+| `categories`     | Nested spending categories                        |
+| `merchant_rules` | Learned merchant → category mappings              |
 
 ## Build Phases
 

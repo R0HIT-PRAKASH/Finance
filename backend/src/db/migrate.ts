@@ -8,7 +8,7 @@ const migrations = `
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL CHECK (type IN ('investment', 'credit', 'chequing', 'savings')),
     institution VARCHAR(255) NOT NULL,
-    registered_type VARCHAR(50) CHECK (registered_type IN ('TFSA', 'RRSP', 'FHSA', 'DPSP', 'non-registered', 'none')),
+    registered_type VARCHAR(50) CHECK (registered_type IN ('TFSA', 'RRSP', 'FHSA', 'DPSP', 'Non-registered', 'none')),
     currency VARCHAR(10) NOT NULL DEFAULT 'CAD',
     created_at TIMESTAMPTZ DEFAULT NOW()
   );
