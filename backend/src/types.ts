@@ -4,4 +4,6 @@ export type CreateAccountInput = {
   institution: string;
   registered_type?: string;
   currency?: string;
+  opening_balance?: number;
+  opening_balance_date?: string;
 };

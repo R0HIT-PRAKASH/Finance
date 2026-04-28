@@ -30,4 +30,27 @@ router.delete("/:id", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/balances", async (req: Request, res: Response) => {
+  try {
+    const balances = await AccountRepository.findBalances();
+    res.json(balances);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch balances" });
+  }
+});
+
+router.patch("/:id/balance", async (req: Request, res: Response) => {
+  try {
+    const { opening_balance, opening_balance_date } = req.body;
+    const result = await AccountRepository.updateBalance(
+      parseInt(req.params.id),
+      opening_balance,
+      opening_balance_date,
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update balance" });
+  }
+});
+
 export default router;

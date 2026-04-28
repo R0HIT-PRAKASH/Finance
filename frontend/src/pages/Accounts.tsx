@@ -22,6 +22,8 @@ export default function Accounts() {
     institution: "",
     registered_type: "none",
     currency: "CAD",
+    opening_balance: 0,
+    opening_balance_date: "",
   });
 
   useEffect(() => {
@@ -145,6 +147,37 @@ export default function Accounts() {
                   <option value="DPSP">DPSP</option>
                   <option value="Non-registered">Non-registered</option>
                 </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
+                    Opening Balance
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.opening_balance ?? ""}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        opening_balance: parseFloat(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
+                    As of Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={form.opening_balance_date ?? ""}
+                    onChange={(e) =>
+                      setForm({ ...form, opening_balance_date: e.target.value })
+                    }
+                  />
+                </div>
               </div>
               <div className="flex gap-2.5 justify-end pt-2">
                 <Button variant="outline" onClick={() => setOpen(false)}>

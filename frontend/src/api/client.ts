@@ -19,6 +19,16 @@ export const api = {
       }),
     delete: (id: number) =>
       request<void>(`/accounts/${id}`, { method: "DELETE" }),
+    balances: () => request<AccountBalance[]>("/accounts/balances"),
+    updateBalance: (
+      id: number,
+      opening_balance: number,
+      opening_balance_date: string,
+    ) =>
+      request<Account>(`/accounts/${id}/balance`, {
+        method: "PATCH",
+        body: JSON.stringify({ opening_balance, opening_balance_date }),
+      }),
   },
   categories: {
     tree: () => request<CategoryNode[]>("/categories"),
@@ -94,4 +104,10 @@ export type TransactionFilters = {
   to?: string;
   limit?: number;
   offset?: number;
+};
+
+export type AccountBalance = Account & {
+  balance: number;
+  opening_balance: number | null;
+  opening_balance_date: string | null;
 };

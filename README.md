@@ -101,7 +101,7 @@ fintrack/
 ## Build Phases
 
 - [x] **Phase 1** — Foundation: Docker, schema, basic UI
-- [ ] **Phase 2** — First real data: CSV import, account balances
+- [x] **Phase 2** — First real data: CSV import, account balances
 - [ ] **Phase 3** — AI categorization: Anthropic API integration
 - [ ] **Phase 4** — Credit cards: Amex + BMO importers
 - [ ] **Phase 5** — Investments: Holdings, prices, exchange rates
