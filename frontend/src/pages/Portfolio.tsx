@@ -3,9 +3,11 @@ import {
   api,
   AccountPortfolio,
   Allocation,
+  ConsolidatedPosition,
   PortfolioResponse,
   Position,
 } from "../api/client";
+import { Button } from "@/components/ui/button";
 
 function formatCAD(amount: number) {
   return new Intl.NumberFormat("en-CA", {
@@ -30,13 +32,34 @@ function GainText({ amount, pct }: { amount: number; pct: number }) {
 export default function Portfolio() {
   const [data, setData] = useState<PortfolioResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshNote, setRefreshNote] = useState<string | null>(null);
+
+  function load() {
+    return api.investments.portfolio().then(setData);
+  }
 
   useEffect(() => {
-    api.investments
-      .portfolio()
-      .then(setData)
-      .finally(() => setLoading(false));
+    load().finally(() => setLoading(false));
   }, []);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setRefreshNote(null);
+    try {
+      const r = await api.investments.refreshPrices();
+      const parts = [`Priced ${r.quoted} of ${r.requested}`];
+      if (r.failed.length) parts.push(`${r.failed.length} failed`);
+      if (r.unquotable.length) parts.push(`${r.unquotable.length} have no quote`);
+      if (r.fx_updated) parts.push(`FX ${r.fx_date}`);
+      setRefreshNote(parts.join(" · "));
+      await load();
+    } catch (err) {
+      setRefreshNote(err instanceof Error ? err.message : "Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -56,34 +79,58 @@ export default function Portfolio() {
 
   return (
     <div>
-      <div className="mb-7">
-        <h2 className="text-xl font-medium text-foreground">Portfolio</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {funded.length === 0
-            ? "No holdings imported yet"
-            : spansDates
-              ? `As of ${totals.as_of_earliest} to ${totals.as_of_latest} (varies by account)`
-              : `As of ${totals.as_of_latest}`}
-        </p>
+      <div className="flex items-start justify-between mb-7">
+        <div>
+          <h2 className="text-xl font-medium text-foreground">Portfolio</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {funded.length === 0
+              ? "No holdings imported yet"
+              : spansDates
+                ? `Statements ${totals.as_of_earliest} to ${totals.as_of_latest} (varies by account)`
+                : `Statements as of ${totals.as_of_latest}`}
+          </p>
+        </div>
+        {funded.length > 0 && (
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+            {refreshing ? "Refreshing..." : "Refresh prices"}
+          </Button>
+        )}
       </div>
+
+      {refreshNote && (
+        <div className="text-sm text-muted-foreground bg-muted border border-border rounded-lg px-4 py-3 mb-4">
+          {refreshNote}
+        </div>
+      )}
 
       {funded.length > 0 && (
         <div className="bg-muted border border-border rounded-xl p-6 mb-4">
           <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-2">
             Total Value
+            {totals.oldest_price_date && (
+              <span className="ml-2 normal-case tracking-normal text-muted-foreground/60">
+                priced {totals.oldest_price_date}
+              </span>
+            )}
           </div>
           <div className="text-4xl font-light font-mono text-foreground tracking-tight">
-            {formatCAD(totals.total_value_cad)}
+            {formatCAD(totals.live_total_value_cad)}
           </div>
           <div className="text-sm text-muted-foreground mt-3 flex flex-wrap gap-x-6 gap-y-1">
             <span>Book {formatCAD(totals.book_value_cad)}</span>
             <span>
               Unrealized{" "}
               <GainText
-                amount={totals.unrealized_gain_cad}
-                pct={totals.unrealized_pct}
+                amount={totals.live_unrealized_cad}
+                pct={totals.live_unrealized_pct}
               />
             </span>
+            {Math.abs(totals.live_total_value_cad - totals.total_value_cad) >
+              0.5 && (
+              <span>
+                Statement {formatCAD(totals.total_value_cad)}
+              </span>
+            )}
             {totals.cash_cad !== 0 && (
               <span>Cash {formatCAD(totals.cash_cad)}</span>
             )}
@@ -99,12 +146,17 @@ export default function Portfolio() {
         </div>
       )}
 
+      {data.positions.length > 0 && (
+        <PositionsCard positions={data.positions} />
+      )}
+
       {funded.map((account) => (
         <AccountCard key={account.account_id} account={account} />
       ))}
 
       {funded.length > 0 && (
         <div className="grid grid-cols-2 gap-4 mt-4">
+
           <AllocationCard title="By Sector" rows={data.allocation.sector} />
           <AllocationCard
             title="By Asset Class"
@@ -137,6 +189,84 @@ export default function Portfolio() {
   );
 }
 
+function PositionsCard({ positions }: { positions: ConsolidatedPosition[] }) {
+  return (
+    <div className="bg-muted border border-border rounded-xl mb-4">
+      <div className="px-5 py-4 border-b border-border">
+        <div className="text-sm font-medium text-foreground">Positions</div>
+        <div className="text-xs text-muted-foreground mt-0.5">
+          Combined across all accounts
+        </div>
+      </div>
+      <table className="w-full">
+        <thead>
+          <tr>
+            {["Security", "Units", "Market value", "Weight", "Unrealized"].map(
+              (h, i) => (
+                <th
+                  key={h}
+                  className={`text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-2.5 border-b border-border ${i === 0 ? "text-left" : "text-right"}`}
+                >
+                  {h}
+                </th>
+              ),
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {positions.map((p) => (
+            <tr key={p.security} className="hover:bg-background/50 transition-colors">
+              <td className="px-4 py-2.5">
+                <div className="text-sm font-mono text-foreground">
+                  {p.security}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {p.held_in.length > 1
+                    ? p.held_in
+                        .map((h) => `${h.account_name} ${h.units.toLocaleString()}`)
+                        .join(" · ")
+                    : p.description}
+                </div>
+              </td>
+              <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right">
+                {p.units.toLocaleString(undefined, {
+                  maximumFractionDigits: 4,
+                })}
+              </td>
+              <td className="px-4 py-2.5 text-sm font-mono text-foreground text-right whitespace-nowrap">
+                {formatCAD(p.market_value_cad)}
+              </td>
+              <td className="px-4 py-2.5 text-right">
+                <div className="flex items-center justify-end gap-2">
+                  <div className="h-1 w-16 bg-background rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary/50 rounded-full"
+                      style={{ width: `${p.percentage}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground w-10">
+                    {p.percentage.toFixed(1)}%
+                  </span>
+                </div>
+              </td>
+              <td className="px-4 py-2.5 text-sm font-mono text-right whitespace-nowrap">
+                {p.unrealized_gain_cad !== null && p.unrealized_pct !== null ? (
+                  <GainText
+                    amount={p.unrealized_gain_cad}
+                    pct={p.unrealized_pct}
+                  />
+                ) : (
+                  <span className="text-muted-foreground text-xs">n/a</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function AccountCard({ account }: { account: AccountPortfolio }) {
   return (
     <div className="bg-muted border border-border rounded-xl mb-4">
@@ -156,14 +286,14 @@ function AccountCard({ account }: { account: AccountPortfolio }) {
         </div>
         <div className="text-right">
           <div className="text-lg font-mono text-foreground">
-            {formatCAD(account.total_value_cad)}
+            {formatCAD(account.live_total_value_cad)}
           </div>
           <div className="text-xs font-mono">
-            {account.unrealized_gain_cad !== null &&
-            account.unrealized_pct !== null ? (
+            {account.live_unrealized_cad !== null &&
+            account.live_unrealized_pct !== null ? (
               <GainText
-                amount={account.unrealized_gain_cad}
-                pct={account.unrealized_pct}
+                amount={account.live_unrealized_cad}
+                pct={account.live_unrealized_pct}
               />
             ) : (
               <span className="text-muted-foreground">no cost basis</span>
@@ -239,7 +369,7 @@ function PositionRow({ position: p }: { position: Position }) {
         )}
       </td>
       <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right whitespace-nowrap">
-        {p.current_price?.toFixed(2)}
+        {p.live_price?.toFixed(2)}
         {foreign && (
           <span className="ml-1 text-xs text-muted-foreground/60">
             {p.settlement_currency}
@@ -247,7 +377,7 @@ function PositionRow({ position: p }: { position: Position }) {
         )}
       </td>
       <td className="px-4 py-2.5 text-sm font-mono text-foreground text-right whitespace-nowrap">
-        {formatCAD(p.market_value_cad)}
+        {formatCAD(p.live_value_cad ?? p.market_value_cad)}
       </td>
       <td className="px-4 py-2.5 text-sm font-mono text-right whitespace-nowrap">
         {p.unrealized_gain_cad !== null && p.book_value_cad !== null && (

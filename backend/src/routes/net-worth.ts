@@ -30,14 +30,15 @@ router.get("/", async (_req: Request, res: Response) => {
     res.json({
       banking: { chequing, savings, credit, total: banking },
       investments: {
-        total: investments.total_value_cad,
+        // Valued at the latest known prices, not the statement date.
+        total: investments.live_total_value_cad,
         book_value_cad: investments.book_value_cad,
-        unrealized_gain_cad: investments.unrealized_gain_cad,
-        unrealized_pct: investments.unrealized_pct,
-        as_of_latest: investments.as_of_latest,
+        unrealized_gain_cad: investments.live_unrealized_cad,
+        unrealized_pct: investments.live_unrealized_pct,
+        as_of_latest: investments.oldest_price_date,
         funded_accounts: investments.funded_accounts,
       },
-      net_worth: banking + investments.total_value_cad,
+      net_worth: banking + investments.live_total_value_cad,
     });
   } catch (err) {
     console.error("Failed to compute net worth:", err);

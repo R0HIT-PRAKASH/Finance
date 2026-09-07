@@ -62,6 +62,10 @@ export const api = {
   },
   investments: {
     portfolio: () => request<PortfolioResponse>("/investments/portfolio"),
+    refreshPrices: () =>
+      request<PriceRefreshResult>("/investments/prices/refresh", {
+        method: "POST",
+      }),
   },
   netWorth: () => request<NetWorth>("/net-worth"),
   categorization: {
@@ -189,7 +193,10 @@ export type Position = {
   units: number;
   settlement_currency: string;
   average_cost: number | null;
-  current_price: number | null;
+  /** Latest known price and what it revalues the position to, in CAD. */
+  live_price: number | null;
+  live_price_date: string | null;
+  live_value_cad: number | null;
   market_value_cad: number;
   book_value_cad: number | null;
   unrealized_gain_cad: number | null;
@@ -214,12 +221,30 @@ export type AccountPortfolio = {
   cash_cad: number;
   /** Securities plus cash. */
   total_value_cad: number;
+  /** Same, revalued at the latest known prices. */
+  live_total_value_cad: number;
+  live_unrealized_cad: number | null;
+  live_unrealized_pct: number | null;
   /** Null when the source reports no lifetime cost basis (e.g. group plans). */
   book_value_cad: number | null;
   unrealized_gain_cad: number | null;
   unrealized_pct: number | null;
   cash: CashBalance[];
   positions: Position[];
+};
+
+export type ConsolidatedPosition = {
+  security: string;
+  description: string | null;
+  sector: string | null;
+  units: number;
+  market_value_cad: number;
+  book_value_cad: number | null;
+  unrealized_gain_cad: number | null;
+  unrealized_pct: number | null;
+  /** Share of total securities value, so concentration is visible. */
+  percentage: number;
+  held_in: { account_name: string; units: number }[];
 };
 
 export type Allocation = {
@@ -239,6 +264,13 @@ export type PortfolioTotals = {
   /** Market value excluded from the gain figures for lack of a cost basis. */
   market_value_without_basis: number;
   accounts_without_basis: number;
+  /** Everything revalued at the latest known prices. */
+  live_total_value_cad: number;
+  live_unrealized_cad: number;
+  live_unrealized_pct: number;
+  /** Oldest price backing the live figure — how stale the total really is. */
+  oldest_price_date: string | null;
+  positions_without_price: number;
   as_of_earliest: string | null;
   as_of_latest: string | null;
   funded_accounts: number;
@@ -246,8 +278,19 @@ export type PortfolioTotals = {
 
 export type PortfolioResponse = {
   accounts: AccountPortfolio[];
+  positions: ConsolidatedPosition[];
   totals: PortfolioTotals;
   allocation: { sector: Allocation[]; asset_class: Allocation[] };
+};
+
+export type PriceRefreshResult = {
+  quoted: number;
+  requested: number;
+  /** Securities with no ticker — group-plan funds have no public quote. */
+  unquotable: string[];
+  failed: string[];
+  fx_updated: boolean;
+  fx_date: string | null;
 };
 
 export type NetWorth = {
