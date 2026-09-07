@@ -267,16 +267,26 @@ function PositionsCard({ positions }: { positions: ConsolidatedPosition[] }) {
   );
 }
 
+/** Most accounts are named after their registration, so the badge would repeat it. */
+function registrationBadge(account: AccountPortfolio): string | null {
+  const kind = account.registered_type;
+  if (!kind || kind === "none") return null;
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+  return normalize(kind) === normalize(account.account_name) ? null : kind;
+}
+
 function AccountCard({ account }: { account: AccountPortfolio }) {
+  const badge = registrationBadge(account);
+
   return (
     <div className="bg-muted border border-border rounded-xl mb-4">
       <div className="flex items-start justify-between px-5 py-4 border-b border-border">
         <div>
           <div className="text-sm font-medium text-foreground">
             {account.account_name}
-            {account.registered_type && account.registered_type !== "none" && (
+            {badge && (
               <span className="ml-2 text-xs font-mono text-primary/70">
-                {account.registered_type}
+                {badge}
               </span>
             )}
           </div>
