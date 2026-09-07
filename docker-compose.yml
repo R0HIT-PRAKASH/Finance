@@ -42,7 +42,10 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./frontend/src:/app/src
+      # Whole dir, so tests/ and config changes are visible without a rebuild.
+      # The anonymous volume keeps the image's node_modules from being shadowed.
+      - ./frontend:/app
+      - /app/node_modules
 
 volumes:
   postgres_data:

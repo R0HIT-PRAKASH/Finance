@@ -4,7 +4,7 @@ import { fetchQuotes, fetchUsdCad } from "./quotes";
 export type RefreshResult = {
   quoted: number;
   requested: number;
-  /** Securities with no ticker — group-plan funds have no public quote. */
+  /** Securities with no ticker, group-plan funds have no public quote. */
   unquotable: string[];
   failed: string[];
   fx_updated: boolean;

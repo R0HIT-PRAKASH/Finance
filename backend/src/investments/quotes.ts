@@ -47,7 +47,7 @@ export async function fetchQuotes(tickers: string[]): Promise<Quote[]> {
   });
 }
 
-/** Bank of Canada's official rate — no API key, unlike the quote feed. */
+/** Bank of Canada's official rate. No API key, unlike the quote feed. */
 export async function fetchUsdCad(): Promise<FxRate | null> {
   const res = await fetch(BOC_USDCAD);
   if (!res.ok) return null;

@@ -1,6 +1,6 @@
 # FinTrack
 
-Personal finance dashboard — single source of truth for all your accounts.
+Personal finance dashboard. Single source of truth for all your accounts.
 
 ## Stack
 
@@ -53,6 +53,12 @@ Personal finance dashboard — single source of truth for all your accounts.
    - Backend API: http://localhost:3001
    - Health check: http://localhost:3001/health
 
+6. **To stop the stack**
+
+   ```bash
+   docker compose down
+   ```
+
 ## Project Structure
 
 ```
@@ -100,10 +106,10 @@ fintrack/
 
 ## Build Phases
 
-- [x] **Phase 1** — Foundation: Docker, schema, basic UI
-- [x] **Phase 2** — First real data: CSV import, account balances
-- [ ] **Phase 3** — AI categorization: Anthropic API integration
-- [ ] **Phase 4** — Credit cards: Amex + BMO importers
-- [ ] **Phase 5** — Investments: Holdings, prices, exchange rates
-- [ ] **Phase 6** — Views: Net worth, spending, portfolio
+- [x] **Phase 1** Foundation: Docker, schema, basic UI
+- [x] **Phase 2** First real data: CSV import, account balances
+- [ ] **Phase 3** AI categorization: Anthropic API integration
+- [ ] **Phase 4** Credit cards: Amex + BMO importers
+- [ ] **Phase 5** Investments: Holdings, prices, exchange rates
+- [ ] **Phase 6** Views: Net worth, spending, portfolio
 - [ ] **Phase 7** - Data projection and visualisation

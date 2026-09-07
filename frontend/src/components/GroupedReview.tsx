@@ -52,7 +52,7 @@ export function GroupedReview({
   if (groups.length === 0) {
     return (
       <div className="text-center py-16 text-muted-foreground text-sm">
-        Nothing uncategorized — you're all caught up.
+        Nothing uncategorized. You're all caught up.
       </div>
     );
   }
@@ -97,7 +97,7 @@ function GroupRow({
   suggestion?: Suggestion;
   onApplied: () => void;
 }) {
-  // Groups needing individual judgment open expanded — the rows are the point.
+  // Groups needing individual judgment open expanded, the rows are the point.
   const [expanded, setExpanded] = useState(!group.bulk_assignable);
   const [saveRule, setSaveRule] = useState(group.rulable);
   const [saving, setSaving] = useState(false);
@@ -135,12 +135,12 @@ function GroupRow({
           </button>
           {!group.bulk_assignable && (
             <div className="text-xs text-muted-foreground mt-1 ml-4">
-              transfers between people — purpose varies, so categorize each one
+              transfers between people: purpose varies, so categorize each one
             </div>
           )}
           {group.bulk_assignable && !group.rulable && (
             <div className="text-xs text-muted-foreground mt-1 ml-4">
-              no reusable pattern — won't create a rule
+              no reusable pattern, won't create a rule
             </div>
           )}
         </td>
@@ -166,7 +166,7 @@ function GroupRow({
                 <button
                   onClick={() => applyToAll(suggestedCategory.id)}
                   disabled={saving}
-                  title="Suggested by Claude — click to accept"
+                  title="Suggested by Claude, click to accept"
                   className={`text-xs font-mono rounded px-2 py-1 border transition-colors whitespace-nowrap ${
                     suggestion?.confidence === "high"
                       ? "border-primary/30 text-primary hover:bg-primary/10"

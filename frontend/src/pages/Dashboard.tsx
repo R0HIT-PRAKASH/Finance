@@ -205,7 +205,7 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>
               {balanceForm?.account.opening_balance_date ? "Update" : "Set"}{" "}
-              Balance — {balanceForm?.account.name}
+              Balance: {balanceForm?.account.name}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">

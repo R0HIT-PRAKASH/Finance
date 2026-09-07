@@ -245,7 +245,7 @@ export default function Accounts() {
                     {account.registered_type !== "none" ? (
                       <Badge variant="accent">{account.registered_type}</Badge>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm font-mono text-muted-foreground">

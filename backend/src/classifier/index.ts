@@ -50,7 +50,7 @@ Each merchant comes with the net amount across its transactions. The sign is a h
 constraint, not a hint:
 - A positive net means money came in. Only an [income] or [transfer] category is valid.
 - A negative net means money went out. Only an [expense] or [transfer] category is valid.
-An inflow is never an expense, however much the merchant name looks like one — a
+An inflow is never an expense, however much the merchant name looks like one, a
 payment from an employer is income even if that employer also sells software.
 
 Rules:
@@ -132,7 +132,7 @@ export async function classifyMerchants(input: {
     .map((s) => {
       const category = s.category_id === null ? null : byId.get(s.category_id);
       // Drop hallucinated ids, and any category whose kind contradicts the
-      // direction of the money — an inflow is never an expense.
+      // direction of the money, an inflow is never an expense.
       if (s.category_id !== null && !category) return { ...s, category_id: null };
       if (category && category.kind !== "transfer") {
         const isInflow = byKey.get(s.key)!.total_amount >= 0;

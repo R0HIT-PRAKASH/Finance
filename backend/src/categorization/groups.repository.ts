@@ -20,7 +20,7 @@ export type TransactionGroup = {
   total_amount: number;
   /** False when the key can't serve as a LIKE pattern (opaque numeric refs). */
   rulable: boolean;
-  /** False when members need individual judgment — see isPersonTransfer. */
+  /** False when members need individual judgment, see isPersonTransfer. */
   bulk_assignable: boolean;
   transactions: GroupedTransaction[];
 };

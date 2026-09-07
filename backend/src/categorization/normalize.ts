@@ -63,8 +63,8 @@ const PERSON_TRANSFER_MARKERS = ["INTERAC ETRNSFR", "INTERAC E-TRANSFER"];
 
 /**
  * True for money moved to or from another person. The counterparty is stable but
- * the purpose is not — the same person may send rent one month and split dinner
- * the next — so these can never be categorized in bulk or turned into a rule.
+ * the purpose is not, the same person may send rent one month and split dinner
+ * the next, so these can never be categorized in bulk or turned into a rule.
  */
 export function isPersonTransfer(description: string): boolean {
   const upper = description.toUpperCase();
@@ -89,7 +89,7 @@ export function normalizeDescription(description: string): string {
 
   for (let i = 0; i < tokens.length; i++) {
     // A place name in first position is part of the merchant ("BC HYDRO"),
-    // not a location suffix — only treat it as noise once something is kept.
+    // not a location suffix, only treat it as noise once something is kept.
     if (kept.length > 0) {
       const twoWord = `${tokens[i]} ${tokens[i + 1] ?? ""}`;
       if (CITIES.includes(twoWord)) break;

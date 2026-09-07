@@ -128,7 +128,7 @@ export type CategoryNode = {
 
 export type CategoryKind = "income" | "expense" | "transfer";
 
-/** Leaf categories only — parent nodes exist for rollup, not assignment. */
+/** Leaf categories only, parent nodes exist for rollup, not assignment. */
 export type FlatCategory = {
   id: number;
   name: string;
@@ -180,7 +180,7 @@ export type TransactionGroup = {
   count: number;
   total_amount: number;
   rulable: boolean;
-  /** False for person-to-person transfers — each needs its own category. */
+  /** False for person-to-person transfers, each needs its own category. */
   bulk_assignable: boolean;
   transactions: GroupedTransaction[];
 };
@@ -268,7 +268,7 @@ export type PortfolioTotals = {
   live_total_value_cad: number;
   live_unrealized_cad: number;
   live_unrealized_pct: number;
-  /** Oldest price backing the live figure — how stale the total really is. */
+  /** Oldest price backing the live figure, how stale the total really is. */
   oldest_price_date: string | null;
   positions_without_price: number;
   as_of_earliest: string | null;
@@ -286,7 +286,7 @@ export type PortfolioResponse = {
 export type PriceRefreshResult = {
   quoted: number;
   requested: number;
-  /** Securities with no ticker — group-plan funds have no public quote. */
+  /** Securities with no ticker, group-plan funds have no public quote. */
   unquotable: string[];
   failed: string[];
   fx_updated: boolean;

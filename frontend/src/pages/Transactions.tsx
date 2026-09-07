@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/datepicker";
 import { Pagination } from "@/components/ui/pagination";
 import { GroupedReview } from "../components/GroupedReview";
+import { getPeriodDates } from "../lib/periods";
 
 const PERIODS = [
   { label: "This month", value: "this_month" },
@@ -23,32 +24,6 @@ const PERIODS = [
   { label: "Custom range", value: "custom" },
 ];
 
-function getPeriodDates(period: string): { from?: string; to?: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-
-  switch (period) {
-    case "this_month":
-      return {
-        from: new Date(y, m, 1).toISOString().slice(0, 10),
-        to: new Date(y, m + 1, 0).toISOString().slice(0, 10),
-      };
-    case "last_month":
-      return {
-        from: new Date(y, m - 1, 1).toISOString().slice(0, 10),
-        to: new Date(y, m, 0).toISOString().slice(0, 10),
-      };
-    case "last_3_months":
-      return { from: new Date(y, m - 2, 1).toISOString().slice(0, 10) };
-    case "last_6_months":
-      return { from: new Date(y, m - 5, 1).toISOString().slice(0, 10) };
-    case "this_year":
-      return { from: `${y}-01-01` };
-    default:
-      return {};
-  }
-}
 
 export default function Transactions() {
   const [view, setView] = useState<"list" | "groups">("list");

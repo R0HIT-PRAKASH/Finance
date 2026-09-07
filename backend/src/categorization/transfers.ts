@@ -3,7 +3,7 @@ import pool from "../db/pool";
 const MAX_DAYS_APART = 5;
 
 /**
- * Links the two sides of a movement between accounts the user owns — the outflow
+ * Links the two sides of a movement between accounts the user owns, the outflow
  * from one account and the matching inflow into another. A paired transaction is
  * not spending: the money never left the user's control, so reports exclude it.
  */
@@ -29,7 +29,7 @@ export const TransfersRepository = {
       [MAX_DAYS_APART],
     );
 
-    // A candidate row per possible match, so claim greedily — closest dates first.
+    // A candidate row per possible match, so claim greedily, closest dates first.
     const used = new Set<number>();
     const pairs = candidates.filter((c) => {
       if (used.has(c.out_id) || used.has(c.in_id)) return false;

@@ -33,7 +33,7 @@ export type AccountPortfolio = {
   as_of: string | null;
   market_value_cad: number;
   cash_cad: number;
-  /** Securities plus cash — what the account is actually worth. */
+  /** Securities plus cash, what the account is actually worth. */
   total_value_cad: number;
   /** Same, revalued at the latest known prices. */
   live_total_value_cad: number;
@@ -62,7 +62,7 @@ export type PortfolioTotals = {
   live_total_value_cad: number;
   live_unrealized_cad: number;
   live_unrealized_pct: number;
-  /** Oldest price backing the live figure — how stale the total really is. */
+  /** Oldest price backing the live figure, how stale the total really is. */
   oldest_price_date: string | null;
   positions_without_price: number;
   as_of_earliest: string | null;
@@ -94,7 +94,7 @@ function pct(gain: number, basis: number): number {
   return basis === 0 ? 0 : (gain / basis) * 100;
 }
 
-/** Latest snapshot date per account — accounts are imported independently. */
+/** Latest snapshot date per account, accounts are imported independently. */
 const LATEST_PER_ACCOUNT = `
   SELECT account_id, max(date) AS date FROM holdings GROUP BY account_id
 `;

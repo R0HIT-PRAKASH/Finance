@@ -9,7 +9,7 @@ type CategoryNode = {
   children?: CategoryNode[];
 };
 
-/** Only roots declare a kind — descendants inherit it. */
+/** Only roots declare a kind, descendants inherit it. */
 const categoryTree: (CategoryNode & { kind: CategoryKind })[] = [
   {
     name: "Income",

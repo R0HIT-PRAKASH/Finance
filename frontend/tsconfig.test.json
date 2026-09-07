@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  // vite.config.ts is excluded: it is Node code and would need @types/node,
+  // which pulls Node globals into a DOM project.
+  "include": ["src", "tests"]
+}

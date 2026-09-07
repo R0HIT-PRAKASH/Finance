@@ -11,7 +11,10 @@ interface PaginationProps {
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 250];
 
-function getPageNumbers(current: number, total: number): (number | "...")[] {
+export function getPageNumbers(
+  current: number,
+  total: number,
+): (number | "...")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i);
 
   const pages: (number | "...")[] = [];

@@ -65,7 +65,7 @@ router.post("/groups/apply", async (req: Request, res: Response) => {
   }
 });
 
-// Suggestions are returned, never applied — the user confirms each one.
+// Suggestions are returned, never applied, the user confirms each one.
 router.post("/suggest", async (_req: Request, res: Response) => {
   if (!isConfigured()) {
     res.status(503).json({ error: "ANTHROPIC_API_KEY is not configured" });
@@ -116,7 +116,7 @@ router.post("/suggest", async (_req: Request, res: Response) => {
     if (err instanceof Anthropic.AuthenticationError) {
       res.status(401).json({ error: "ANTHROPIC_API_KEY is invalid" });
     } else if (err instanceof Anthropic.RateLimitError) {
-      res.status(429).json({ error: "Rate limited by Anthropic — try again shortly" });
+      res.status(429).json({ error: "Rate limited by Anthropic, try again shortly" });
     } else {
       res.status(500).json({ error: "Failed to suggest categories" });
     }
