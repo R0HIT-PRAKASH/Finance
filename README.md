@@ -106,3 +106,4 @@ fintrack/
 - [ ] **Phase 4** — Credit cards: Amex + BMO importers
 - [ ] **Phase 5** — Investments: Holdings, prices, exchange rates
 - [ ] **Phase 6** — Views: Net worth, spending, portfolio
+- [ ] **Phase 7** - Data projection and visualisation

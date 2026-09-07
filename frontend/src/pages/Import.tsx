@@ -5,6 +5,22 @@ import { Select } from "@/components/ui/select";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
+// Must match what getParser() expects on the backend
+const SUPPORTED = [
+  { institution: "bmo", type: "chequing", label: "BMO Chequing" },
+  { institution: "bmo", type: "savings", label: "BMO Savings" },
+  { institution: "amex", type: "credit", label: "Amex Credit Card" },
+];
+
+function getParserLabel(account: Account): string | null {
+  const match = SUPPORTED.find(
+    (s) =>
+      account.institution.toLowerCase().startsWith(s.institution) &&
+      account.type === s.type,
+  );
+  return match?.label ?? null;
+}
+
 type ImportedTransaction = {
   id: number;
   date: string;
@@ -25,9 +41,10 @@ export default function Import() {
 
   useEffect(() => {
     api.accounts.list().then((all) => {
-      const chequing = all.filter((a) => a.type === "chequing");
-      setAccounts(chequing);
-      if (chequing.length > 0) setAccountId(String(chequing[0].id));
+      // Only show accounts we have a parser for
+      const supported = all.filter((a) => getParserLabel(a) !== null);
+      setAccounts(supported);
+      if (supported.length > 0) setAccountId(String(supported[0].id));
     });
   }, []);
 
@@ -47,7 +64,7 @@ export default function Import() {
     setSuccess(null);
 
     try {
-      const res = await fetch(`${API_URL}/import/bmo-chequing`, {
+      const res = await fetch(`${API_URL}/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -73,6 +90,9 @@ export default function Import() {
     }
   }
 
+  const selectedAccount = accounts.find((a) => String(a.id) === accountId);
+  const parserLabel = selectedAccount ? getParserLabel(selectedAccount) : null;
+
   return (
     <div>
       <div className="mb-7">
@@ -84,7 +104,7 @@ export default function Import() {
 
       <div className="bg-muted border border-border rounded-xl p-6 mb-6">
         <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-5">
-          BMO Chequing CSV
+          Import Transactions
         </div>
 
         <div className="space-y-4">
@@ -102,6 +122,12 @@ export default function Import() {
                 </option>
               ))}
             </Select>
+            {parserLabel && (
+              <p className="text-xs text-muted-foreground">
+                Using parser:{" "}
+                <span className="text-primary font-mono">{parserLabel}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -181,7 +207,7 @@ export default function Import() {
                   </td>
                   <td className="px-4 py-3 text-sm">{tx.description}</td>
                   <td
-                    className={`px-4 py-3 text-sm font-mono ${tx.amount >= 0 ? "text-primary" : "text-destructive"}`}
+                    className={`px-4 py-3 text-sm font-mono ${Number(tx.amount) >= 0 ? "text-primary" : "text-destructive"}`}
                   >
                     {Number(tx.amount) >= 0 ? "+" : ""}
                     {Number(tx.amount).toFixed(2)}

@@ -1,4 +1,5 @@
 import pool from "../db/pool";
+import { normalizeDescription } from "../categorization/normalize";
 
 export type TransactionFilters = {
   account_id?: number;
@@ -105,14 +106,17 @@ export const TransactionRepository = {
         [category_id, id],
       );
 
-      if (save_rule && result.rows[0]?.merchant_name) {
-        await client.query(
-          `INSERT INTO merchant_rules (merchant_name, category_id, source)
-           VALUES ($1, $2, 'manual')
-           ON CONFLICT (merchant_name) DO UPDATE
-           SET category_id = $2, source = 'manual'`,
-          [result.rows[0].merchant_name, category_id],
-        );
+      if (save_rule && result.rows[0]?.description) {
+        const pattern = normalizeDescription(result.rows[0].description);
+        if (pattern.length >= 3) {
+          await client.query(
+            `INSERT INTO merchant_rules (pattern, category_id, source)
+             VALUES ($1, $2, 'manual')
+             ON CONFLICT (pattern) DO UPDATE
+             SET category_id = EXCLUDED.category_id, source = 'manual'`,
+            [pattern, category_id],
+          );
+        }
       }
 
       await client.query("COMMIT");
@@ -141,10 +145,13 @@ export const TransactionRepository = {
       const inserted = [];
 
       for (const tx of transactions) {
-        // Check if merchant rule exists
+        // Longest pattern wins so specific rules beat general ones
         const rule = await client.query(
-          `SELECT category_id FROM merchant_rules WHERE merchant_name = $1`,
-          [tx.merchant_name],
+          `SELECT category_id FROM merchant_rules
+           WHERE UPPER($1) LIKE '%' || UPPER(pattern) || '%'
+           ORDER BY length(pattern) DESC
+           LIMIT 1`,
+          [tx.description],
         );
 
         const category_id = rule.rows[0]?.category_id ?? null;

@@ -1,113 +1,73 @@
 import { Router, Request, Response } from "express";
-import { parse } from "csv-parse";
 import pool from "../db/pool";
 import { TransactionRepository } from "../repositories/transactions.repository";
+import { getParser } from "../parsers";
+import { TransfersRepository } from "../categorization/transfers";
 
 const router = Router();
 
-type ParsedTransaction = {
-  date: string;
-  amount: number;
-  description: string;
-  type: "CREDIT" | "DEBIT";
-};
-
-function parseBMOChequing(content: string): ParsedTransaction[] {
-  const lines = content
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0); // this removes blank lines
-
-  // Now skip the header row (first non-empty line)
-  const dataLines = lines.slice(1);
-
-  console.log("Total lines after filtering:", dataLines.length);
-  console.log("First data line:", dataLines[0]);
-
-  return dataLines
-    .filter((line) => {
-      const cols = line.match(/('.*?'|[^,]+)/g)?.map((c) => c.trim()) ?? [];
-      return /^\d{8}$/.test(cols[2]);
-    })
-    .map((line) => {
-      const cols = line.match(/('.*?'|[^,]+)/g)?.map((c) => c.trim()) ?? [];
-      const transactionType = cols[1] as "CREDIT" | "DEBIT";
-      const rawDate = cols[2];
-      const amount = parseFloat(cols[3]);
-      const description = cols[4]?.replace(/\s+/g, " ").trim() ?? "";
-      const date = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
-      return { date, amount, description, type: transactionType };
-    });
-}
-
-// POST /import/bmo-chequing
-router.post("/bmo-chequing", async (req: Request, res: Response) => {
+// POST /import
+// Body: { account_id, csv_content }
+// Automatically detects parser from account's institution + type
+router.post("/", async (req: Request, res: Response) => {
   const { account_id, csv_content } = req.body;
-  console.log("Received account_id:", account_id);
-  console.log("CSV content length:", csv_content?.length);
-  console.log("First 200 chars:", csv_content?.slice(0, 200));
+
   if (!account_id || !csv_content) {
     res.status(400).json({ error: "account_id and csv_content are required" });
     return;
   }
 
   try {
-    const transactions = parseBMOChequing(csv_content);
+    // Look up account to get institution and type
+    const accountResult = await pool.query(
+      "SELECT * FROM accounts WHERE id = $1",
+      [account_id],
+    );
+
+    if (accountResult.rows.length === 0) {
+      res.status(404).json({ error: "Account not found" });
+      return;
+    }
+
+    const account = accountResult.rows[0];
+    const parser = getParser(account.institution, account.type);
+
+    if (!parser) {
+      res.status(400).json({
+        error: `No parser available for ${account.institution} ${account.type}. Supported: BMO Chequing, Amex Credit.`,
+      });
+      return;
+    }
+
+    const transactions = parser(csv_content);
 
     if (transactions.length === 0) {
       res.status(400).json({ error: "No transactions found in CSV" });
       return;
     }
 
-    // Insert all transactions
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
+    const inserted = await TransactionRepository.insertMany(
+      transactions.map((tx) => ({
+        date: tx.date,
+        account_id,
+        amount: tx.amount,
+        currency: account.currency,
+        description: tx.description,
+        merchant_name: tx.description,
+      })),
+    );
 
-      const inserted = await TransactionRepository.insertMany(
-        transactions.map((tx) => ({
-          date: tx.date,
-          account_id,
-          amount: tx.amount,
-          currency: "CAD",
-          description: tx.description,
-          merchant_name: tx.description,
-        })),
-      );
-      res
-        .status(201)
-        .json({ imported: inserted.length, transactions: inserted });
+    // New rows may complete a transfer whose other side was already imported.
+    const paired = await TransfersRepository.detectPairs();
 
-      await client.query("COMMIT");
-      res
-        .status(201)
-        .json({ imported: inserted.length, transactions: inserted });
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
-    }
+    res.status(201).json({
+      imported: inserted.length,
+      paired,
+      transactions: inserted,
+    });
   } catch (err) {
     console.error("Import error:", err);
     res.status(500).json({ error: "Failed to import transactions" });
-  }
-});
-
-// GET /import/transactions/:account_id
-router.get("/transactions/:account_id", async (req: Request, res: Response) => {
-  try {
-    const result = await pool.query(
-      `SELECT t.*, c.name as category_name, c.parent_id as category_parent_id
-       FROM transactions t
-       LEFT JOIN categories c ON t.category_id = c.id
-       WHERE t.account_id = $1
-       ORDER BY t.date DESC`,
-      [req.params.account_id],
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch transactions" });
   }
 });
 

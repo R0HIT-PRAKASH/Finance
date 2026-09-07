@@ -2,14 +2,18 @@ import pool from "./pool";
 import dotenv from "dotenv";
 dotenv.config();
 
+type CategoryKind = "income" | "expense" | "transfer";
+
 type CategoryNode = {
   name: string;
   children?: CategoryNode[];
 };
 
-const categoryTree: CategoryNode[] = [
+/** Only roots declare a kind — descendants inherit it. */
+const categoryTree: (CategoryNode & { kind: CategoryKind })[] = [
   {
     name: "Income",
+    kind: "income",
     children: [
       { name: "Salary" },
       { name: "Bonus" },
@@ -21,6 +25,7 @@ const categoryTree: CategoryNode[] = [
   },
   {
     name: "Living Expenses",
+    kind: "expense",
     children: [
       {
         name: "Food",
@@ -36,6 +41,7 @@ const categoryTree: CategoryNode[] = [
           { name: "Rent" },
           { name: "Utilities" },
           { name: "Internet" },
+          { name: "Phone" },
         ],
       },
       {
@@ -50,6 +56,7 @@ const categoryTree: CategoryNode[] = [
   },
   {
     name: "Discretionary",
+    kind: "expense",
     children: [
       { name: "Shopping" },
       { name: "Entertainment" },
@@ -59,6 +66,7 @@ const categoryTree: CategoryNode[] = [
   },
   {
     name: "Subscriptions",
+    kind: "expense",
     children: [
       { name: "Streaming" },
       { name: "Software" },
@@ -67,6 +75,7 @@ const categoryTree: CategoryNode[] = [
   },
   {
     name: "Investments",
+    kind: "transfer",
     children: [
       { name: "Purchase" },
       { name: "Sale" },
@@ -76,6 +85,7 @@ const categoryTree: CategoryNode[] = [
   },
   {
     name: "Transfers",
+    kind: "transfer",
     children: [
       { name: "Credit Card Payment" },
       { name: "Interac Transfer" },
@@ -86,14 +96,15 @@ const categoryTree: CategoryNode[] = [
 async function insertCategory(
   client: any,
   node: CategoryNode,
+  kind: CategoryKind,
   parentId: number | null = null
 ): Promise<void> {
   const result = await client.query(
-    `INSERT INTO categories (name, parent_id)
-     VALUES ($1, $2)
+    `INSERT INTO categories (name, parent_id, kind)
+     VALUES ($1, $2, $3)
      ON CONFLICT DO NOTHING
      RETURNING id`,
-    [node.name, parentId]
+    [node.name, parentId, kind]
   );
 
   if (result.rows.length === 0) {
@@ -106,7 +117,7 @@ async function insertCategory(
 
   if (node.children) {
     for (const child of node.children) {
-      await insertCategory(client, child, id);
+      await insertCategory(client, child, kind, id);
     }
   }
 }
@@ -116,7 +127,7 @@ async function seed() {
   try {
     console.log("Seeding categories...");
     for (const root of categoryTree) {
-      await insertCategory(client, root);
+      await insertCategory(client, root, root.kind);
     }
     console.log("Seed complete.");
   } catch (err) {

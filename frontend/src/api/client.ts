@@ -5,7 +5,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    const message = await res
+      .json()
+      .then((body) => body?.error)
+      .catch(() => null);
+    throw new Error(message ?? `API error: ${res.status}`);
+  }
+  if (res.status === 204) return undefined as T;
   return res.json();
 }
 
@@ -53,6 +60,40 @@ export const api = {
         body: JSON.stringify({ category_id, save_rule }),
       }),
   },
+  categorization: {
+    groups: (filters: GroupFilters = {}) => {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") params.append(k, String(v));
+      });
+      return request<TransactionGroup[]>(`/categorization/groups?${params}`);
+    },
+    applyGroup: (
+      transaction_ids: number[],
+      category_id: number,
+      pattern?: string,
+    ) =>
+      request<{ updated: number }>("/categorization/groups/apply", {
+        method: "POST",
+        body: JSON.stringify({ transaction_ids, category_id, pattern }),
+      }),
+    suggest: () =>
+      request<{ suggestions: Suggestion[] }>("/categorization/suggest", {
+        method: "POST",
+      }),
+    rules: () => request<Rule[]>("/categorization/rules"),
+    createRule: (pattern: string, category_id: number) =>
+      request<Rule>("/categorization/rules", {
+        method: "POST",
+        body: JSON.stringify({ pattern, category_id }),
+      }),
+    deleteRule: (id: number) =>
+      request<void>(`/categorization/rules/${id}`, { method: "DELETE" }),
+    applyRules: () =>
+      request<{ updated: number }>("/categorization/rules/apply", {
+        method: "POST",
+      }),
+  },
 };
 
 export type Account = {
@@ -74,9 +115,13 @@ export type CategoryNode = {
   children: CategoryNode[];
 };
 
+export type CategoryKind = "income" | "expense" | "transfer";
+
+/** Leaf categories only — parent nodes exist for rollup, not assignment. */
 export type FlatCategory = {
   id: number;
   name: string;
+  kind: CategoryKind;
   parent_name: string | null;
 };
 
@@ -104,6 +149,45 @@ export type TransactionFilters = {
   to?: string;
   limit?: number;
   offset?: number;
+};
+
+export type GroupFilters = {
+  account_id?: number;
+  from?: string;
+  to?: string;
+};
+
+export type GroupedTransaction = {
+  id: number;
+  date: string;
+  description: string;
+  amount: number;
+};
+
+export type TransactionGroup = {
+  pattern: string;
+  count: number;
+  total_amount: number;
+  rulable: boolean;
+  /** False for person-to-person transfers — each needs its own category. */
+  bulk_assignable: boolean;
+  transactions: GroupedTransaction[];
+};
+
+export type Suggestion = {
+  key: string;
+  category_id: number | null;
+  confidence: "high" | "low";
+};
+
+export type Rule = {
+  id: number;
+  pattern: string;
+  category_id: number;
+  category_name: string | null;
+  category_parent_name: string | null;
+  source: string;
+  created_at: string;
 };
 
 export type AccountBalance = Account & {

@@ -20,6 +20,7 @@ services:
       DATABASE_URL: postgresql://fintrack:fintrack@db:5432/fintrack
       PORT: 3001
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_WORKSPACE_ID: ${ANTHROPIC_WORKSPACE_ID:-}
     ports:
       - "3001:3001"
     depends_on:

@@ -3,12 +3,14 @@ import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
 import Import from "./pages/Import";
 import Transactions from "./pages/Transactions";
+import Rules from "./pages/Rules";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: "◈" },
   { to: "/accounts", label: "Accounts", icon: "◉" },
   { to: "/import", label: "Import", icon: "◎" },
   { to: "/transactions", label: "Transactions", icon: "◎" },
+  { to: "/rules", label: "Rules", icon: "◇" },
 ];
 
 export default function App() {
@@ -49,6 +51,7 @@ export default function App() {
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/import" element={<Import />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/rules" element={<Rules />} />
         </Routes>
       </main>
     </div>

@@ -1,8 +1,17 @@
 import { useEffect, useState, useCallback } from "react";
-import { api, Transaction, Account, FlatCategory } from "../api/client";
+import {
+  api,
+  Transaction,
+  Account,
+  FlatCategory,
+  TransactionGroup,
+  Suggestion,
+} from "../api/client";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/datepicker";
+import { Pagination } from "@/components/ui/pagination";
+import { GroupedReview } from "../components/GroupedReview";
 
 const PERIODS = [
   { label: "This month", value: "this_month" },
@@ -42,8 +51,14 @@ function getPeriodDates(period: string): { from?: string; to?: string } {
 }
 
 export default function Transactions() {
+  const [view, setView] = useState<"list" | "groups">("list");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [groups, setGroups] = useState<TransactionGroup[]>([]);
+  const [suggestions, setSuggestions] = useState<Record<string, Suggestion>>({});
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [uncategorizedTotal, setUncategorizedTotal] = useState(0);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<FlatCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,21 +70,48 @@ export default function Transactions() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
+  // Pagination
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
+
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
     const dates =
       period === "custom"
         ? { from: customFrom || undefined, to: customTo || undefined }
         : getPeriodDates(period);
-    const result = await api.transactions.list({
+
+    const filters = {
       account_id: accountId ? parseInt(accountId) : undefined,
       uncategorized: uncategorized || undefined,
       ...dates,
-    });
+    };
+
+    const [result, uncatResult, groupResult] = await Promise.all([
+      api.transactions.list({
+        ...filters,
+        limit: pageSize,
+        offset: page * pageSize,
+      }),
+      api.transactions.list({ ...filters, uncategorized: true, limit: 1 }),
+      api.categorization.groups({
+        account_id: filters.account_id,
+        from: dates.from,
+        to: dates.to,
+      }),
+    ]);
+
     setTransactions(result.transactions);
     setTotal(result.total);
+    setUncategorizedTotal(uncatResult.total);
+    setGroups(groupResult);
     setLoading(false);
-  }, [period, accountId, uncategorized, customFrom, customTo]);
+  }, [period, accountId, uncategorized, customFrom, customTo, page, pageSize]);
+
+  // Reset to page 0 when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [period, accountId, uncategorized, customFrom, customTo, pageSize]);
 
   useEffect(() => {
     api.accounts.list().then(setAccounts);
@@ -100,9 +142,28 @@ export default function Transactions() {
         };
       }),
     );
+    // Update uncategorized count
+    if (!tx.category_id) {
+      setUncategorizedTotal((prev) => Math.max(0, prev - 1));
+    }
   }
 
-  const uncategorizedCount = transactions.filter((t) => !t.category_id).length;
+  async function handleSuggest() {
+    setSuggesting(true);
+    setSuggestError(null);
+    try {
+      const { suggestions } = await api.categorization.suggest();
+      setSuggestions(
+        Object.fromEntries(suggestions.map((s) => [s.key, s])),
+      );
+    } catch (err) {
+      setSuggestError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div>
@@ -111,14 +172,45 @@ export default function Transactions() {
           <h2 className="text-xl font-medium text-foreground">Transactions</h2>
           <p className="text-sm text-muted-foreground mt-1">
             {total} transactions
-            {uncategorizedCount > 0 && (
+            {uncategorizedTotal > 0 && (
               <span className="ml-2 text-destructive">
-                {uncategorizedCount} uncategorized
+                {uncategorizedTotal} uncategorized in {groups.length} groups
               </span>
             )}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          {view === "groups" && groups.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSuggest}
+              disabled={suggesting}
+            >
+              {suggesting ? "Asking Claude..." : "✦ Suggest categories"}
+            </Button>
+          )}
+          <div className="flex gap-1 bg-muted border border-border rounded-lg p-1">
+          {(["list", "groups"] as const).map((v) => (
+            <Button
+              key={v}
+              variant="ghost"
+              size="sm"
+              onClick={() => setView(v)}
+              className={`text-xs px-3 ${view === v ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+            >
+              {v === "list" ? "List" : "Review groups"}
+            </Button>
+          ))}
+          </div>
+        </div>
       </div>
+
+      {suggestError && (
+        <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 mb-4">
+          {suggestError}
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="bg-muted border border-border rounded-xl p-4 mb-4 flex gap-3 items-center flex-wrap">
@@ -133,6 +225,7 @@ export default function Transactions() {
             </option>
           ))}
         </Select>
+
         {period === "custom" && (
           <>
             <DatePicker
@@ -162,19 +255,48 @@ export default function Transactions() {
           ))}
         </Select>
 
-        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer ml-auto">
-          <input
-            type="checkbox"
-            checked={uncategorized}
-            onChange={(e) => setUncategorized(e.target.checked)}
-            className="accent-primary"
-          />
-          Uncategorized only
-        </label>
+        {view === "list" && (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer ml-auto">
+            <input
+              type="checkbox"
+              checked={uncategorized}
+              onChange={(e) => setUncategorized(e.target.checked)}
+              className="accent-primary"
+            />
+            Uncategorized only
+          </label>
+        )}
       </div>
 
       {/* Transactions table */}
       <div className="bg-muted border border-border rounded-xl">
+        {view === "groups" ? (
+          loading ? (
+            <div className="text-center py-16 text-muted-foreground text-sm">
+              Loading...
+            </div>
+          ) : (
+            <GroupedReview
+              groups={groups}
+              categories={categories}
+              suggestions={suggestions}
+              onApplied={fetchTransactions}
+            />
+          )
+        ) : (
+          <>
+        {/* Top pagination */}
+        {!loading && total > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        )}
+
         {loading ? (
           <div className="text-center py-16 text-muted-foreground text-sm">
             Loading...
@@ -210,6 +332,20 @@ export default function Transactions() {
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* Bottom pagination */}
+        {!loading && total > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        )}
+          </>
         )}
       </div>
     </div>
