@@ -1,6 +1,11 @@
 # Environment
 .env
 
+# Real financial exports: account numbers and full transaction history.
+# Never commit these.
+data/
+*.csv
+
 # Dependencies
 node_modules/
 
