@@ -46,7 +46,7 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    const inserted = await TransactionRepository.insertMany(
+    const { inserted, skipped } = await TransactionRepository.insertMany(
       transactions.map((tx) => ({
         date: tx.date,
         account_id,
@@ -62,6 +62,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     res.status(201).json({
       imported: inserted.length,
+      skipped,
       paired,
       transactions: inserted,
     });

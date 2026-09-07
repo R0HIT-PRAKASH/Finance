@@ -143,8 +143,17 @@ export const TransactionRepository = {
     try {
       await client.query("BEGIN");
       const inserted = [];
+      let skipped = 0;
+
+      // Numbered within this file, so re-importing an overlapping range
+      // produces the same numbering and conflicts away.
+      const seen = new Map<string, number>();
 
       for (const tx of transactions) {
+        const key = `${tx.account_id}|${tx.date}|${tx.amount}|${tx.description}`;
+        const occurrence = (seen.get(key) ?? 0) + 1;
+        seen.set(key, occurrence);
+
         // Longest pattern wins so specific rules beat general ones
         const rule = await client.query(
           `SELECT category_id FROM merchant_rules
@@ -158,9 +167,10 @@ export const TransactionRepository = {
         const source = category_id ? "rule" : null;
 
         const result = await client.query(
-          `INSERT INTO transactions 
-            (date, account_id, amount, currency, description, merchant_name, category_id, categorization_source)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `INSERT INTO transactions
+            (date, account_id, amount, currency, description, merchant_name, category_id, categorization_source, occurrence)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT ON CONSTRAINT transactions_natural_key_unique DO NOTHING
            RETURNING *`,
           [
             tx.date,
@@ -171,13 +181,15 @@ export const TransactionRepository = {
             tx.merchant_name,
             category_id,
             source,
+            occurrence,
           ],
         );
-        inserted.push(result.rows[0]);
+        if (result.rows[0]) inserted.push(result.rows[0]);
+        else skipped += 1;
       }
 
       await client.query("COMMIT");
-      return inserted;
+      return { inserted, skipped };
     } catch (err) {
       await client.query("ROLLBACK");
       throw err;

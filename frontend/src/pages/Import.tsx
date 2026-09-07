@@ -80,7 +80,14 @@ export default function Import() {
 
       const data = await res.json();
       setImported(data.transactions);
-      setSuccess(`Successfully imported ${data.imported} transactions`);
+      const parts = [`Imported ${data.imported} transactions`];
+      if (data.skipped) {
+        parts.push(`${data.skipped} already on file`);
+      }
+      if (data.paired) {
+        parts.push(`${data.paired} transfer${data.paired === 1 ? "" : "s"} matched`);
+      }
+      setSuccess(parts.join(" · "));
       setCsvContent("");
       setFilename("");
     } catch (err: any) {
