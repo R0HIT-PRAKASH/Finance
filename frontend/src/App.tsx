@@ -5,6 +5,8 @@ import Import from "./pages/Import";
 import Transactions from "./pages/Transactions";
 import Rules from "./pages/Rules";
 import Portfolio from "./pages/Portfolio";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 const navSections: { heading: string | null; items: NavItem[] }[] = [
   { heading: null, items: [{ to: "/", label: "Dashboard", icon: "◈" }] },
@@ -25,7 +27,7 @@ const navSections: { heading: string | null; items: NavItem[] }[] = [
 
 type NavItem = { to: string; label: string; icon: string };
 
-export default function App() {
+function AppContent() {
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="w-52 shrink-0 bg-muted border-r border-border flex flex-col py-6">
@@ -66,16 +68,29 @@ export default function App() {
           ))}
         </nav>
       </aside>
-      <main className="flex-1 overflow-auto p-8">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/accounts" element={<Accounts />} />
-          <Route path="/import" element={<Import />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/rules" element={<Rules />} />
-          <Route path="/portfolio" element={<Portfolio />} />
-        </Routes>
+      <main className="flex-1 overflow-auto flex flex-col">
+        <div className="flex justify-end items-center px-8 py-4 border-b border-border">
+          <ThemeToggle />
+        </div>
+        <div className="flex-1 p-8">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/accounts" element={<Accounts />} />
+            <Route path="/import" element={<Import />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/rules" element={<Rules />} />
+            <Route path="/portfolio" element={<Portfolio />} />
+          </Routes>
+        </div>
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }

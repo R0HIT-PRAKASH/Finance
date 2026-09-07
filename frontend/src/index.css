@@ -17,6 +17,20 @@
     --destructive-foreground: 0 0% 91%;
     --radius: 0.5rem;
   }
+
+  [data-theme="light"] {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 4%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 40%;
+    --border: 0 0% 88%;
+    --primary: 74 60% 38%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 74 60% 38%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 0 0% 100%;
+  }
 }
 
 @layer base {
