@@ -1,8 +1,31 @@
 import { Router, Request, Response } from "express";
 import { PortfolioRepository } from "./portfolio.repository";
 import { PricesRepository } from "./prices.repository";
+import { ActivityRepository } from "./activity.repository";
+import { parseInvestorlineActivity } from "../parsers/investorline-activity.parser";
 
 const router = Router();
+
+// No account is named: every row carries its own account number.
+router.post("/activity/import", async (req: Request, res: Response) => {
+  const { csv_content } = req.body;
+  if (!csv_content) {
+    res.status(400).json({ error: "csv_content is required" });
+    return;
+  }
+
+  try {
+    const rows = parseInvestorlineActivity(csv_content);
+    if (rows.length === 0) {
+      res.status(400).json({ error: "No activity rows found in file" });
+      return;
+    }
+    res.status(201).json(await ActivityRepository.importRows(rows));
+  } catch (err) {
+    console.error("Failed to import activity:", err);
+    res.status(500).json({ error: "Failed to import activity" });
+  }
+});
 
 router.post("/prices/refresh", async (_req: Request, res: Response) => {
   try {
