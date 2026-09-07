@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPersonTransfer, normalizeDescription } from "./normalize";
+import { isPersonTransfer, normalizeDescription } from "../../src/categorization/normalize";
 
 describe("normalizeDescription", () => {
   it("strips the bank's transaction-type prefix", () => {

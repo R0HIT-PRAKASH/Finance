@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBMOChequing } from "./bmo-chequing.parser";
+import { parseBMOChequing } from "../../src/parsers/bmo-chequing.parser";
 
 const HEADER =
   "First Bank Card,Transaction Type,Date Posted,Transaction Amount,Description";

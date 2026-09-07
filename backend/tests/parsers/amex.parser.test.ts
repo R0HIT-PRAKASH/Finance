@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAmex } from "./amex.parser";
+import { parseAmex } from "../../src/parsers/amex.parser";
 
 const HEADER = "Date,Reference,Description,Amount";
 

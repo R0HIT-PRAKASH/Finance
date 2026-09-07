@@ -9,7 +9,8 @@
     "migrate:down": "node-pg-migrate down --migrations-dir src/migrations --database-url postgresql://fintrack:fintrack@db:5432/fintrack",
     "seed": "tsx src/db/seed.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
