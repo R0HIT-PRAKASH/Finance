@@ -60,6 +60,10 @@ export const api = {
         body: JSON.stringify({ category_id, save_rule }),
       }),
   },
+  investments: {
+    portfolio: () => request<PortfolioResponse>("/investments/portfolio"),
+  },
+  netWorth: () => request<NetWorth>("/net-worth"),
   categorization: {
     groups: (filters: GroupFilters = {}) => {
       const params = new URLSearchParams();
@@ -106,7 +110,10 @@ export type Account = {
   created_at: string;
 };
 
-export type CreateAccountInput = Omit<Account, "id" | "created_at">;
+export type CreateAccountInput = Omit<Account, "id" | "created_at"> & {
+  opening_balance?: number;
+  opening_balance_date?: string;
+};
 
 export type CategoryNode = {
   id: number;
@@ -172,6 +179,93 @@ export type TransactionGroup = {
   /** False for person-to-person transfers — each needs its own category. */
   bulk_assignable: boolean;
   transactions: GroupedTransaction[];
+};
+
+export type Position = {
+  security: string;
+  description: string | null;
+  asset_class: string | null;
+  sector: string | null;
+  units: number;
+  settlement_currency: string;
+  average_cost: number | null;
+  current_price: number | null;
+  market_value_cad: number;
+  book_value_cad: number | null;
+  unrealized_gain_cad: number | null;
+};
+
+export type CashBalance = {
+  currency: string;
+  amount: number;
+  amount_cad: number;
+  /** True when no snapshot-date FX rate existed, so amount_cad is unconverted. */
+  rate_missing: boolean;
+};
+
+export type AccountPortfolio = {
+  account_id: number;
+  account_name: string;
+  institution: string;
+  registered_type: string;
+  /** Null when the account has no holdings snapshot yet. */
+  as_of: string | null;
+  market_value_cad: number;
+  cash_cad: number;
+  /** Securities plus cash. */
+  total_value_cad: number;
+  /** Null when the source reports no lifetime cost basis (e.g. group plans). */
+  book_value_cad: number | null;
+  unrealized_gain_cad: number | null;
+  unrealized_pct: number | null;
+  cash: CashBalance[];
+  positions: Position[];
+};
+
+export type Allocation = {
+  label: string;
+  market_value_cad: number;
+  percentage: number;
+};
+
+export type PortfolioTotals = {
+  securities_cad: number;
+  cash_cad: number;
+  total_value_cad: number;
+  /** Gain figures cover only holdings with a known cost basis. */
+  book_value_cad: number;
+  unrealized_gain_cad: number;
+  unrealized_pct: number;
+  /** Market value excluded from the gain figures for lack of a cost basis. */
+  market_value_without_basis: number;
+  accounts_without_basis: number;
+  as_of_earliest: string | null;
+  as_of_latest: string | null;
+  funded_accounts: number;
+};
+
+export type PortfolioResponse = {
+  accounts: AccountPortfolio[];
+  totals: PortfolioTotals;
+  allocation: { sector: Allocation[]; asset_class: Allocation[] };
+};
+
+export type NetWorth = {
+  banking: {
+    chequing: number;
+    savings: number;
+    credit: number;
+    total: number;
+  };
+  investments: {
+    total: number;
+    book_value_cad: number;
+    unrealized_gain_cad: number;
+    unrealized_pct: number;
+    as_of_latest: string | null;
+    funded_accounts: number;
+  };
+  net_worth: number;
 };
 
 export type Suggestion = {

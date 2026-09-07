@@ -29,7 +29,8 @@ export default function Accounts() {
   useEffect(() => {
     api.accounts
       .list()
-      .then(setAccounts)
+      // Investment accounts live on the Portfolio page.
+      .then((all) => setAccounts(all.filter((a) => a.type !== "investment")))
       .finally(() => setLoading(false));
   }, []);
 

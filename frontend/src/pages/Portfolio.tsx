@@ -1,0 +1,294 @@
+import { useEffect, useState } from "react";
+import {
+  api,
+  AccountPortfolio,
+  Allocation,
+  PortfolioResponse,
+  Position,
+} from "../api/client";
+
+function formatCAD(amount: number) {
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+  }).format(amount);
+}
+
+function GainText({ amount, pct }: { amount: number; pct: number }) {
+  return (
+    <span className={amount >= 0 ? "text-primary" : "text-destructive"}>
+      {amount >= 0 ? "+" : ""}
+      {formatCAD(amount)}{" "}
+      <span className="text-xs">
+        ({amount >= 0 ? "+" : ""}
+        {pct.toFixed(2)}%)
+      </span>
+    </span>
+  );
+}
+
+export default function Portfolio() {
+  const [data, setData] = useState<PortfolioResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.investments
+      .portfolio()
+      .then(setData)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="text-center py-16 text-muted-foreground text-sm">
+        Loading...
+      </div>
+    );
+  }
+  if (!data) return null;
+
+  const { totals } = data;
+  const funded = data.accounts.filter((a) => a.as_of !== null);
+  const empty = data.accounts.filter((a) => a.as_of === null);
+
+  // Snapshots are imported per account, so a single "as of" would be misleading.
+  const spansDates = totals.as_of_earliest !== totals.as_of_latest;
+
+  return (
+    <div>
+      <div className="mb-7">
+        <h2 className="text-xl font-medium text-foreground">Portfolio</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {funded.length === 0
+            ? "No holdings imported yet"
+            : spansDates
+              ? `As of ${totals.as_of_earliest} to ${totals.as_of_latest} (varies by account)`
+              : `As of ${totals.as_of_latest}`}
+        </p>
+      </div>
+
+      {funded.length > 0 && (
+        <div className="bg-muted border border-border rounded-xl p-6 mb-4">
+          <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Total Value
+          </div>
+          <div className="text-4xl font-light font-mono text-foreground tracking-tight">
+            {formatCAD(totals.total_value_cad)}
+          </div>
+          <div className="text-sm text-muted-foreground mt-3 flex flex-wrap gap-x-6 gap-y-1">
+            <span>Book {formatCAD(totals.book_value_cad)}</span>
+            <span>
+              Unrealized{" "}
+              <GainText
+                amount={totals.unrealized_gain_cad}
+                pct={totals.unrealized_pct}
+              />
+            </span>
+            {totals.cash_cad !== 0 && (
+              <span>Cash {formatCAD(totals.cash_cad)}</span>
+            )}
+          </div>
+          {totals.accounts_without_basis > 0 && (
+            <p className="text-xs text-muted-foreground/70 mt-2">
+              Gain excludes {formatCAD(totals.market_value_without_basis)} across{" "}
+              {totals.accounts_without_basis} account
+              {totals.accounts_without_basis === 1 ? "" : "s"} that report no
+              cost basis.
+            </p>
+          )}
+        </div>
+      )}
+
+      {funded.map((account) => (
+        <AccountCard key={account.account_id} account={account} />
+      ))}
+
+      {funded.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <AllocationCard title="By Sector" rows={data.allocation.sector} />
+          <AllocationCard
+            title="By Asset Class"
+            rows={data.allocation.asset_class}
+          />
+        </div>
+      )}
+
+      {empty.length > 0 && (
+        <div className="bg-muted border border-border rounded-xl p-5 mt-4">
+          <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-3">
+            Awaiting first import
+          </div>
+          <div className="space-y-2">
+            {empty.map((a) => (
+              <div
+                key={a.account_id}
+                className="flex items-center justify-between text-sm"
+              >
+                <span className="text-foreground">{a.account_name}</span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {a.institution}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AccountCard({ account }: { account: AccountPortfolio }) {
+  return (
+    <div className="bg-muted border border-border rounded-xl mb-4">
+      <div className="flex items-start justify-between px-5 py-4 border-b border-border">
+        <div>
+          <div className="text-sm font-medium text-foreground">
+            {account.account_name}
+            {account.registered_type && account.registered_type !== "none" && (
+              <span className="ml-2 text-xs font-mono text-primary/70">
+                {account.registered_type}
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground font-mono mt-0.5">
+            {account.institution} · as of {account.as_of}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-mono text-foreground">
+            {formatCAD(account.total_value_cad)}
+          </div>
+          <div className="text-xs font-mono">
+            {account.unrealized_gain_cad !== null &&
+            account.unrealized_pct !== null ? (
+              <GainText
+                amount={account.unrealized_gain_cad}
+                pct={account.unrealized_pct}
+              />
+            ) : (
+              <span className="text-muted-foreground">no cost basis</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <table className="w-full">
+        <thead>
+          <tr>
+            {["Security", "Units", "Avg cost", "Price", "Market value", "Unrealized"].map(
+              (h, i) => (
+                <th
+                  key={h}
+                  className={`text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-2.5 border-b border-border ${i === 0 ? "text-left" : "text-right"}`}
+                >
+                  {h}
+                </th>
+              ),
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {account.positions.map((p) => (
+            <PositionRow key={p.security} position={p} />
+          ))}
+          {account.cash.map((c) => (
+            <tr key={c.currency} className="text-muted-foreground">
+              <td className="px-4 py-2.5 text-sm font-mono">
+                Cash
+                <span className="ml-1.5 text-xs">{c.currency}</span>
+              </td>
+              <td colSpan={3} />
+              <td className="px-4 py-2.5 text-sm font-mono text-right whitespace-nowrap">
+                {formatCAD(c.amount_cad)}
+                {c.currency !== "CAD" && (
+                  <span className="ml-1 text-xs text-muted-foreground/60">
+                    ({c.amount.toFixed(2)} {c.currency}
+                    {c.rate_missing && ", no rate"})
+                  </span>
+                )}
+              </td>
+              <td />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PositionRow({ position: p }: { position: Position }) {
+  const foreign = p.settlement_currency !== "CAD";
+  return (
+    <tr className="hover:bg-background/50 transition-colors">
+      <td className="px-4 py-2.5">
+        <div className="text-sm font-mono text-foreground">{p.security}</div>
+        <div className="text-xs text-muted-foreground truncate max-w-xs">
+          {p.description}
+          {p.sector && ` · ${p.sector}`}
+        </div>
+      </td>
+      <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right">
+        {p.units.toLocaleString()}
+      </td>
+      <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right whitespace-nowrap">
+        {p.average_cost?.toFixed(2)}
+        {foreign && (
+          <span className="ml-1 text-xs text-muted-foreground/60">
+            {p.settlement_currency}
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right whitespace-nowrap">
+        {p.current_price?.toFixed(2)}
+        {foreign && (
+          <span className="ml-1 text-xs text-muted-foreground/60">
+            {p.settlement_currency}
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-2.5 text-sm font-mono text-foreground text-right whitespace-nowrap">
+        {formatCAD(p.market_value_cad)}
+      </td>
+      <td className="px-4 py-2.5 text-sm font-mono text-right whitespace-nowrap">
+        {p.unrealized_gain_cad !== null && p.book_value_cad !== null && (
+          <GainText
+            amount={p.unrealized_gain_cad}
+            pct={
+              p.book_value_cad === 0
+                ? 0
+                : (p.unrealized_gain_cad / p.book_value_cad) * 100
+            }
+          />
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function AllocationCard({ title, rows }: { title: string; rows: Allocation[] }) {
+  return (
+    <div className="bg-muted border border-border rounded-xl p-5">
+      <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-4">
+        {title}
+      </div>
+      <div className="space-y-3">
+        {rows.map((r) => (
+          <div key={r.label}>
+            <div className="flex items-baseline justify-between text-sm mb-1">
+              <span className="text-foreground">{r.label}</span>
+              <span className="font-mono text-muted-foreground text-xs">
+                {r.percentage.toFixed(1)}% · {formatCAD(r.market_value_cad)}
+              </span>
+            </div>
+            <div className="h-1 bg-background rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary/50 rounded-full"
+                style={{ width: `${r.percentage}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

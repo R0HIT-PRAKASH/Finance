@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, AccountBalance } from "../api/client";
+import { api, AccountBalance, NetWorth } from "../api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,12 +17,13 @@ function formatCAD(amount: number) {
   }).format(amount);
 }
 
-const TYPE_ORDER = ["chequing", "savings", "credit", "investment"];
+// Investment accounts are valued from holdings snapshots, not transaction
+// balances, so they're summarized on the Portfolio page instead.
+const TYPE_ORDER = ["chequing", "savings", "credit"];
 const TYPE_LABELS: Record<string, string> = {
   chequing: "Chequing",
   savings: "Savings",
   credit: "Credit",
-  investment: "Investment",
 };
 
 type BalanceForm = {
@@ -33,14 +34,17 @@ type BalanceForm = {
 
 export default function Dashboard() {
   const [balances, setBalances] = useState<AccountBalance[]>([]);
+  const [netWorth, setNetWorth] = useState<NetWorth | null>(null);
   const [loading, setLoading] = useState(true);
   const [balanceForm, setBalanceForm] = useState<BalanceForm | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.accounts
-      .balances()
-      .then(setBalances)
+    Promise.all([api.accounts.balances(), api.netWorth()])
+      .then(([b, nw]) => {
+        setBalances(b);
+        setNetWorth(nw);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -51,12 +55,6 @@ export default function Dashboard() {
     },
     {} as Record<string, AccountBalance[]>,
   );
-
-  const chequingTotal =
-    grouped.chequing?.reduce((s, a) => s + a.balance, 0) ?? 0;
-  const savingsTotal = grouped.savings?.reduce((s, a) => s + a.balance, 0) ?? 0;
-  const creditTotal = grouped.credit?.reduce((s, a) => s + a.balance, 0) ?? 0;
-  const netWorth = chequingTotal + savingsTotal + creditTotal;
 
   function openBalanceForm(account: AccountBalance) {
     setBalanceForm({
@@ -103,11 +101,18 @@ export default function Dashboard() {
               Net Worth
             </div>
             <div className="text-4xl font-light font-mono text-foreground tracking-tight">
-              {formatCAD(netWorth)}
+              {formatCAD(netWorth?.net_worth ?? 0)}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Excludes investment accounts — coming in Phase 5
-            </p>
+            {netWorth && (
+              <div className="text-xs text-muted-foreground mt-2 flex flex-wrap gap-x-5 gap-y-1">
+                <span>Banking {formatCAD(netWorth.banking.total)}</span>
+                <span>
+                  Investments {formatCAD(netWorth.investments.total)}
+                  {netWorth.investments.as_of_latest &&
+                    ` (as of ${netWorth.investments.as_of_latest})`}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -115,7 +120,6 @@ export default function Dashboard() {
               const accounts = grouped[type] ?? [];
               if (accounts.length === 0) return null;
               const total = accounts.reduce((s, a) => s + a.balance, 0);
-              const isInvestment = type === "investment";
 
               return (
                 <div
@@ -126,13 +130,11 @@ export default function Dashboard() {
                     <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
                       {TYPE_LABELS[type]}
                     </div>
-                    {!isInvestment && (
-                      <div
-                        className={`text-sm font-mono font-medium ${total >= 0 ? "text-primary" : "text-destructive"}`}
-                      >
-                        {formatCAD(total)}
-                      </div>
-                    )}
+                    <div
+                      className={`text-sm font-mono font-medium ${total >= 0 ? "text-primary" : "text-destructive"}`}
+                    >
+                      {formatCAD(total)}
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -156,19 +158,17 @@ export default function Dashboard() {
                           )}
                         </div>
                         <div className="flex items-center gap-3">
-                          {!isInvestment && (
-                            <div
-                              className={`text-sm font-mono ${account.balance >= 0 ? "text-foreground" : "text-destructive"}`}
-                            >
-                              {account.opening_balance_date ? (
-                                formatCAD(account.balance)
-                              ) : (
-                                <span className="text-muted-foreground text-xs">
-                                  no baseline
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          <div
+                            className={`text-sm font-mono ${account.balance >= 0 ? "text-foreground" : "text-destructive"}`}
+                          >
+                            {account.opening_balance_date ? (
+                              formatCAD(account.balance)
+                            ) : (
+                              <span className="text-muted-foreground text-xs">
+                                no baseline
+                              </span>
+                            )}
+                          </div>
                           {account.registered_type &&
                             account.registered_type !== "none" && (
                               <div className="text-xs text-primary/70 font-mono">

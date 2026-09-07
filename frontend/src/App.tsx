@@ -4,14 +4,26 @@ import Accounts from "./pages/Accounts";
 import Import from "./pages/Import";
 import Transactions from "./pages/Transactions";
 import Rules from "./pages/Rules";
+import Portfolio from "./pages/Portfolio";
 
-const navItems = [
-  { to: "/", label: "Dashboard", icon: "◈" },
-  { to: "/accounts", label: "Accounts", icon: "◉" },
-  { to: "/import", label: "Import", icon: "◎" },
-  { to: "/transactions", label: "Transactions", icon: "◎" },
-  { to: "/rules", label: "Rules", icon: "◇" },
+const navSections: { heading: string | null; items: NavItem[] }[] = [
+  { heading: null, items: [{ to: "/", label: "Dashboard", icon: "◈" }] },
+  {
+    heading: "Banking",
+    items: [
+      { to: "/accounts", label: "Accounts", icon: "◉" },
+      { to: "/transactions", label: "Transactions", icon: "◎" },
+      { to: "/import", label: "Import", icon: "↧" },
+      { to: "/rules", label: "Rules", icon: "◇" },
+    ],
+  },
+  {
+    heading: "Investments",
+    items: [{ to: "/portfolio", label: "Portfolio", icon: "◭" }],
+  },
 ];
+
+type NavItem = { to: string; label: string; icon: string };
 
 export default function App() {
   return (
@@ -26,22 +38,31 @@ export default function App() {
           </span>
         </div>
         <nav>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-5 py-2.5 text-sm transition-colors border-l-2 ${
-                  isActive
-                    ? "text-primary border-primary bg-primary/10"
-                    : "text-muted-foreground border-transparent hover:text-foreground hover:bg-muted"
-                }`
-              }
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </NavLink>
+          {navSections.map((section, i) => (
+            <div key={section.heading ?? "root"} className={i > 0 ? "mt-5" : ""}>
+              {section.heading && (
+                <div className="px-5 pb-1.5 text-[10px] font-mono font-medium uppercase tracking-widest text-muted-foreground/60">
+                  {section.heading}
+                </div>
+              )}
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === "/"}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-5 py-2.5 text-sm transition-colors border-l-2 ${
+                      isActive
+                        ? "text-primary border-primary bg-primary/10"
+                        : "text-muted-foreground border-transparent hover:text-foreground hover:bg-muted"
+                    }`
+                  }
+                >
+                  <span>{item.icon}</span>
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
       </aside>
@@ -52,6 +73,7 @@ export default function App() {
           <Route path="/import" element={<Import />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/rules" element={<Rules />} />
+          <Route path="/portfolio" element={<Portfolio />} />
         </Routes>
       </main>
     </div>
