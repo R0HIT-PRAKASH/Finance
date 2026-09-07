@@ -1,5 +1,6 @@
 import pool from "../db/pool";
 import { ParsedHoldingsReport } from "../parsers/investorline-holdings.parser";
+import { describeIssues, reconcileHoldings } from "../parsers/reconcile";
 
 export type HoldingsImportResult = {
   account: string;
@@ -50,31 +51,11 @@ export const HoldingsRepository = {
     );
     const total = securitiesValue + cashCad;
 
-    // Each row states its own inputs and outputs, so the parse is checked
-    // against arithmetic the file itself asserts. Deriving an expected total
-    // from a value under test would be circular and catch nothing.
-    const off = (actual: number, expected: number) =>
-      Math.abs(actual - expected) > Math.max(1, Math.abs(expected) * 0.005);
-
-    for (const h of report.holdings) {
-      if (h.average_cost !== null && h.total_cost !== null) {
-        const expected = h.quantity * h.average_cost;
-        if (off(h.total_cost, expected)) {
-          throw new Error(
-            `${h.symbol}: total cost ${h.total_cost} does not match ${h.quantity} x ${h.average_cost}`,
-          );
-        }
-      }
-      if (h.current_price !== null) {
-        const fx =
-          h.settlement_currency === "CAD" ? 1 : (report.usd_to_cad ?? 1);
-        const expected = h.quantity * h.current_price * fx;
-        if (off(h.market_value_cad, expected)) {
-          throw new Error(
-            `${h.symbol}: market value ${h.market_value_cad} does not match ${h.quantity} x ${h.current_price} x ${fx}`,
-          );
-        }
-      }
+    // Refuse the whole import rather than write numbers that failed their own
+    // arithmetic. Partially applying a bad statement is worse than applying none.
+    const issues = reconcileHoldings(report);
+    if (issues.length > 0) {
+      throw new Error(`Parse failed reconciliation. ${describeIssues(issues)}`);
     }
 
     const client = await pool.connect();
