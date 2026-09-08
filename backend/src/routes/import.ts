@@ -68,7 +68,10 @@ router.post("/", async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error("Import error:", err);
-    res.status(500).json({ error: "Failed to import transactions" });
+    // A file in the wrong format is the user's to fix, not a server fault.
+    const message =
+      err instanceof Error ? err.message : "Failed to import transactions";
+    res.status(400).json({ error: message });
   }
 });
 

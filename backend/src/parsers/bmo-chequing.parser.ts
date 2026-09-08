@@ -12,6 +12,16 @@ function splitColumns(line: string): string[] {
 }
 
 export function parseBMOChequing(content: string): ParsedTransaction[] {
+  // Both BMO exports open with the same "Following data is valid as of" line,
+  // but the credit layout shifts amount and description one column right. Left
+  // undetected it reads the posting date as the amount, which is silently wrong
+  // rather than obviously broken.
+  if (/^\s*Item\s*#\s*,/m.test(content)) {
+    throw new Error(
+      "This is a BMO credit card export, not a chequing one. Import it against the credit card account.",
+    );
+  }
+
   const lines = content
     .split("\n")
     .map((l) => l.trim())

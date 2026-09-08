@@ -59,6 +59,17 @@ some trailing note`,
     expect(tx.description).toBe("[CW]INTERAC ETRNSFR SENT YUTO");
   });
 
+  it("refuses a BMO credit card export rather than misreading it", () => {
+    // Regression: both exports share the "Following data is valid as of"
+    // preamble, but the credit layout shifts amount and description one column
+    // right. Parsing it here read the posting date as the amount.
+    const creditExport = `Following data is valid as of 20260110010326:
+
+Item #,Card #,Transaction Date,Posting Date,Transaction Amount,Description
+1,'5191230222826670',20251117,20251117,-220.02,TRSF FROM/DE ACCT/CPT 2559-XXXX-515`;
+    expect(() => parseBMOChequing(creditExport)).toThrow(/credit card export/);
+  });
+
   it("returns nothing for a header-only file", () => {
     expect(parseBMOChequing(HEADER)).toEqual([]);
   });
