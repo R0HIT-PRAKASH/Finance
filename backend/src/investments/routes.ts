@@ -5,6 +5,8 @@ import { ActivityRepository } from "./activity.repository";
 import { HoldingsRepository } from "./holdings.repository";
 import { PerformanceRepository } from "./performance.repository";
 import { ReturnsRepository } from "./returns.repository";
+import { MetadataRepository } from "./metadata.repository";
+import { ExposureRepository } from "./exposure.repository";
 import { parseInvestorlineActivity } from "../parsers/investorline-activity.parser";
 import { parseInvestorlineHoldings } from "../parsers/investorline-holdings.parser";
 
@@ -50,6 +52,18 @@ router.post("/activity/import", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/exposure", async (req: Request, res: Response) => {
+  try {
+    const accountId = req.query.account_id
+      ? parseInt(req.query.account_id as string)
+      : undefined;
+    res.json(await ExposureRepository.find(accountId));
+  } catch (err) {
+    console.error("Failed to compute exposure:", err);
+    res.status(500).json({ error: "Failed to compute exposure" });
+  }
+});
+
 router.get("/returns", async (req: Request, res: Response) => {
   try {
     const accountId = req.query.account_id
@@ -71,6 +85,15 @@ router.get("/performance", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Failed to build performance series:", err);
     res.status(500).json({ error: "Failed to build performance series" });
+  }
+});
+
+router.post("/metadata/refresh", async (_req: Request, res: Response) => {
+  try {
+    res.json(await MetadataRepository.refresh());
+  } catch (err) {
+    console.error("Failed to refresh metadata:", err);
+    res.status(500).json({ error: "Failed to refresh metadata" });
   }
 });
 

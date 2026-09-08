@@ -87,6 +87,64 @@ export async function fetchHistory(
   );
 }
 
+export type SecurityMetadata = {
+  ticker: string;
+  /** Look-through sector weights, summing to roughly 1 for a fund. */
+  sectors: { sector: string; weight: number }[];
+  stock_position: number | null;
+  bond_position: number | null;
+  cash_position: number | null;
+  other_position: number | null;
+  legal_type: string | null;
+  sector: string | null;
+  country: string | null;
+};
+
+/** Yahoo returns sector keys as "consumer_cyclical"; make them readable. */
+function humanizeSector(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bIt\b/, "IT");
+}
+
+/**
+ * Profile data for one security. Funds expose a sector breakdown of what they
+ * hold; individual stocks expose their own sector instead.
+ */
+export async function fetchSecurityMetadata(
+  ticker: string,
+): Promise<SecurityMetadata | null> {
+  const result: any = await yf.quoteSummary(ticker, {
+    modules: ["topHoldings", "fundProfile", "assetProfile"],
+  });
+  if (!result) return null;
+
+  const top = result.topHoldings ?? {};
+  const sectors: { sector: string; weight: number }[] = (
+    top.sectorWeightings ?? []
+  ).flatMap((entry: any) => {
+    const [key, weight] = Object.entries(entry)[0] ?? [];
+    return typeof weight === "number" && weight > 0
+      ? [{ sector: humanizeSector(String(key)), weight }]
+      : [];
+  });
+
+  const asNumber = (v: unknown) => (typeof v === "number" ? v : null);
+
+  return {
+    ticker,
+    sectors,
+    stock_position: asNumber(top.stockPosition),
+    bond_position: asNumber(top.bondPosition),
+    cash_position: asNumber(top.cashPosition),
+    other_position: asNumber(top.otherPosition),
+    legal_type: result.fundProfile?.legalType ?? null,
+    sector: result.assetProfile?.sector ?? null,
+    country: result.assetProfile?.country ?? null,
+  };
+}
+
 /** Bank of Canada's official rate. No API key, unlike the quote feed. */
 export async function fetchUsdCad(): Promise<FxRate | null> {
   const res = await fetch(BOC_USDCAD);
