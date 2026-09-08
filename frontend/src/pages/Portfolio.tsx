@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   api,
-  ConsolidatedPosition,
   Exposure,
   PortfolioResponse,
   Slice,
 } from "../api/client";
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { Button, ListBox, Select, Table } from "@heroui/react";
+
+const ALL_ACCOUNTS = "all";
 
 function formatCAD(amount: number, maximumFractionDigits = 2) {
   return new Intl.NumberFormat("en-CA", {
@@ -19,7 +19,7 @@ function formatCAD(amount: number, maximumFractionDigits = 2) {
 
 function GainText({ amount, pct }: { amount: number; pct: number }) {
   return (
-    <span className={amount >= 0 ? "text-primary" : "text-destructive"}>
+    <span className={amount >= 0 ? "text-success" : "text-danger"}>
       {amount >= 0 ? "+" : ""}
       {formatCAD(amount)}{" "}
       <span className="text-xs">
@@ -42,13 +42,11 @@ function Card({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="bg-muted border border-border rounded-xl mb-4">
+    <div className="bg-surface border border-border rounded-xl mb-4">
       <div className="flex items-start justify-between px-5 py-4 border-b border-border">
         <div>
           <div className="text-sm font-medium text-foreground">{title}</div>
-          {note && (
-            <div className="text-xs text-muted-foreground mt-0.5">{note}</div>
-          )}
+          {note && <div className="text-xs text-muted mt-0.5">{note}</div>}
         </div>
         {right}
       </div>
@@ -65,11 +63,11 @@ function Breakdown({ rows }: { rows: Slice[] }) {
         <div key={r.label}>
           <div className="flex items-baseline justify-between text-sm mb-1 gap-3">
             <span className="text-foreground truncate">{r.label}</span>
-            <span className="font-mono text-muted-foreground text-xs whitespace-nowrap tabular-nums">
+            <span className="font-mono text-muted text-xs whitespace-nowrap tabular-nums">
               {r.percentage.toFixed(1)}% · {formatCAD(r.value_cad, 0)}
             </span>
           </div>
-          <div className="h-1 bg-background rounded-full overflow-hidden">
+          <div className="h-1 bg-default rounded-full overflow-hidden">
             <div
               className="h-full rounded-full"
               style={{
@@ -117,7 +115,8 @@ export default function Portfolio() {
       const r = await api.investments.refreshPrices();
       const parts = [`Priced ${r.quoted} of ${r.requested}`];
       if (r.failed.length) parts.push(`${r.failed.length} failed`);
-      if (r.unquotable.length) parts.push(`${r.unquotable.length} have no quote`);
+      if (r.unquotable.length)
+        parts.push(`${r.unquotable.length} have no quote`);
       if (r.fx_updated) parts.push(`FX ${r.fx_date}`);
       setNote(parts.join(" · "));
       await load();
@@ -130,9 +129,7 @@ export default function Portfolio() {
 
   if (loading) {
     return (
-      <div className="text-center py-16 text-muted-foreground text-sm">
-        Loading...
-      </div>
+      <div className="text-center py-16 text-muted text-sm">Loading...</div>
     );
   }
   if (!data) return null;
@@ -145,7 +142,8 @@ export default function Portfolio() {
     : undefined;
 
   // Everything below the selector reflects the chosen scope.
-  const scopedValue = selected?.live_total_value_cad ?? totals.live_total_value_cad;
+  const scopedValue =
+    selected?.live_total_value_cad ?? totals.live_total_value_cad;
   const scopedBook = selected?.book_value_cad ?? totals.book_value_cad;
   const scopedGain = selected?.live_unrealized_cad ?? totals.live_unrealized_cad;
   const scopedPct = selected?.live_unrealized_pct ?? totals.live_unrealized_pct;
@@ -184,7 +182,7 @@ export default function Portfolio() {
       <div className="flex items-start justify-between mb-7 gap-4">
         <div>
           <h2 className="text-xl font-medium text-foreground">Portfolio</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-muted mt-1">
             {funded.length === 0
               ? "No holdings imported yet"
               : totals.oldest_price_date
@@ -194,22 +192,42 @@ export default function Portfolio() {
         </div>
         <div className="flex items-center gap-2">
           <Select
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
+            aria-label="Account"
             className="w-52"
+            value={accountId || ALL_ACCOUNTS}
+            onChange={(value) =>
+              setAccountId(value === ALL_ACCOUNTS ? "" : String(value))
+            }
           >
-            <option value="">All accounts</option>
-            {funded.map((a) => (
-              <option key={a.account_id} value={a.account_id}>
-                {a.account_name} · {a.institution}
-              </option>
-            ))}
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                <ListBox.Item id={ALL_ACCOUNTS} textValue="All accounts">
+                  All accounts
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+                {funded.map((a) => (
+                  <ListBox.Item
+                    key={a.account_id}
+                    id={String(a.account_id)}
+                    textValue={`${a.account_name} · ${a.institution}`}
+                  >
+                    {a.account_name} · {a.institution}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
           </Select>
           <Button
-            variant="outline"
+            isDisabled={refreshing}
+            isPending={refreshing}
             size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing}
+            variant="outline"
+            onPress={handleRefresh}
           >
             {refreshing ? "Refreshing..." : "Refresh prices"}
           </Button>
@@ -217,19 +235,19 @@ export default function Portfolio() {
       </div>
 
       {note && (
-        <div className="text-sm text-muted-foreground bg-muted border border-border rounded-lg px-4 py-3 mb-4">
+        <div className="text-sm text-muted bg-surface border border-border rounded-lg px-4 py-3 mb-4">
           {note}
         </div>
       )}
 
-      <div className="bg-muted border border-border rounded-xl p-6 mb-4">
-        <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-2">
+      <div className="bg-surface border border-border rounded-xl p-6 mb-4">
+        <div className="text-sm text-muted mb-2">
           {selected ? selected.account_name : "Total value"}
         </div>
         <div className="text-4xl font-light font-mono text-foreground tracking-tight">
           {formatCAD(scopedValue)}
         </div>
-        <div className="text-sm text-muted-foreground mt-3 flex flex-wrap gap-x-6 gap-y-1">
+        <div className="text-sm text-muted mt-3 flex flex-wrap gap-x-6 gap-y-1">
           {scopedBook !== null && <span>Book {formatCAD(scopedBook)}</span>}
           {scopedGain !== null && scopedPct !== null ? (
             <span>
@@ -271,80 +289,78 @@ export default function Portfolio() {
 
       {!scope && funded.length > 0 && (
         <Card title="Accounts" note="Select one above to scope the page to it.">
-          <table className="w-full">
-            <tbody>
-              {funded.map((a) => (
-                <tr
-                  key={a.account_id}
-                  className="hover:bg-background/50 transition-colors cursor-pointer"
-                  onClick={() => setAccountId(String(a.account_id))}
-                >
-                  <td className="px-5 py-3">
-                    <div className="text-sm text-foreground">
-                      {a.account_name}
-                    </div>
-                    <div className="text-xs text-muted-foreground font-mono">
-                      {a.institution} · as of {a.as_of}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-sm font-mono text-right tabular-nums">
-                    {formatCAD(a.live_total_value_cad)}
-                  </td>
-                  <td className="px-5 py-3 text-xs font-mono text-right whitespace-nowrap">
-                    {a.live_unrealized_cad !== null &&
-                    a.live_unrealized_pct !== null ? (
-                      <GainText
-                        amount={a.live_unrealized_cad}
-                        pct={a.live_unrealized_pct}
-                      />
-                    ) : (
-                      <span className="text-muted-foreground">no basis</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="divide-y divide-border">
+            {funded.map((a) => (
+              <button
+                key={a.account_id}
+                className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-surface-hover transition-colors"
+                onClick={() => setAccountId(String(a.account_id))}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-foreground">
+                    {a.account_name}
+                  </div>
+                  <div className="text-xs text-muted font-mono">
+                    {a.institution} · as of {a.as_of}
+                  </div>
+                </div>
+                <div className="text-sm font-mono text-right tabular-nums whitespace-nowrap">
+                  {formatCAD(a.live_total_value_cad)}
+                </div>
+                <div className="text-xs font-mono text-right whitespace-nowrap w-44">
+                  {a.live_unrealized_cad !== null &&
+                  a.live_unrealized_pct !== null ? (
+                    <GainText
+                      amount={a.live_unrealized_cad}
+                      pct={a.live_unrealized_pct}
+                    />
+                  ) : (
+                    <span className="text-muted">no basis</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
         </Card>
       )}
 
       {exposure && (
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="bg-muted border border-border rounded-xl p-5">
+          <div className="bg-surface border border-border rounded-xl p-5">
             <div className="text-sm font-medium text-foreground mb-1">
               Sector
             </div>
-            <div className="text-xs text-muted-foreground mb-4">
+            <div className="text-xs text-muted mb-4">
               Seen through to what the funds hold, not the label on the
               statement.
             </div>
             <Breakdown rows={exposure.sectors.slice(0, 9)} />
             {exposure.securities_without_lookthrough.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-4">
+              <p className="text-xs text-muted mt-4">
                 {exposure.securities_without_lookthrough.length} holdings have no
                 look-through data and are counted whole under their own label.
               </p>
             )}
           </div>
           <div className="space-y-4">
-            <div className="bg-muted border border-border rounded-xl p-5">
+            <div className="bg-surface border border-border rounded-xl p-5">
               <div className="text-sm font-medium text-foreground mb-4">
                 Asset class
               </div>
               <Breakdown rows={exposure.asset_classes} />
             </div>
-            <div className="bg-muted border border-border rounded-xl p-5">
+            <div className="bg-surface border border-border rounded-xl p-5">
               <div className="text-sm font-medium text-foreground mb-4">
                 Currency
               </div>
               <Breakdown rows={exposure.currencies} />
             </div>
             {exposure.tax.length > 0 && (
-              <div className="bg-muted border border-border rounded-xl p-5">
+              <div className="bg-surface border border-border rounded-xl p-5">
                 <div className="text-sm font-medium text-foreground mb-1">
                   Tax treatment
                 </div>
-                <div className="text-xs text-muted-foreground mb-4">
+                <div className="text-xs text-muted mb-4">
                   Gains in a registered account are never taxed. Gains in a
                   taxable one are realised when you sell.
                 </div>
@@ -357,13 +373,17 @@ export default function Portfolio() {
                           {formatCAD(t.value_cad, 0)}
                         </span>
                       </div>
-                      <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+                      <div className="flex items-baseline justify-between text-xs text-muted">
                         <span className="truncate pr-2">
                           {t.accounts.join(", ")}
                         </span>
                         {t.unrealized_cad !== null && (
                           <span
-                            className={`font-mono tabular-nums whitespace-nowrap ${t.unrealized_cad >= 0 ? "text-primary" : "text-destructive"}`}
+                            className={`font-mono tabular-nums whitespace-nowrap ${
+                              t.unrealized_cad >= 0
+                                ? "text-success"
+                                : "text-danger"
+                            }`}
                           >
                             {t.unrealized_cad >= 0 ? "+" : ""}
                             {formatCAD(t.unrealized_cad, 0)} unrealized
@@ -379,32 +399,81 @@ export default function Portfolio() {
         </div>
       )}
 
-      <Card
-        title="Positions"
-        note={scope ? "In this account" : "Combined across all accounts"}
-      >
-        <table className="w-full">
-          <thead>
-            <tr>
-              {["Security", "Units", "Market value", "Weight", "Unrealized"].map(
-                (h, i) => (
-                  <th
-                    key={h}
-                    className={`text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-2.5 border-b border-border ${i === 0 ? "text-left" : "text-right"}`}
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {withShare.map((p) => (
-              <PositionRow key={p.security} position={p} scoped={!!scope} />
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      <div className="mb-3">
+        <div className="text-sm font-medium text-foreground">Positions</div>
+        <div className="text-xs text-muted mt-0.5">
+          {scope ? "In this account" : "Combined across all accounts"}
+        </div>
+      </div>
+      <Table className="mb-4">
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Positions">
+            <Table.Header>
+              <Table.Column isRowHeader>Security</Table.Column>
+              <Table.Column>Units</Table.Column>
+              <Table.Column>Market value</Table.Column>
+              <Table.Column>Weight</Table.Column>
+              <Table.Column>Unrealized</Table.Column>
+            </Table.Header>
+            <Table.Body>
+              {withShare.map((p) => (
+                <Table.Row key={p.security}>
+                  <Table.Cell>
+                    <div className="text-sm font-mono text-foreground">
+                      {p.security}
+                    </div>
+                    <div className="text-xs text-muted truncate max-w-sm">
+                      {!scope && p.held_in.length > 1
+                        ? p.held_in
+                            .map(
+                              (h) =>
+                                `${h.account_name} ${h.units.toLocaleString()}`,
+                            )
+                            .join(" · ")
+                        : (p.description ?? p.sector)}
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell className="font-mono text-muted text-right tabular-nums">
+                    {p.units.toLocaleString(undefined, {
+                      maximumFractionDigits: 4,
+                    })}
+                  </Table.Cell>
+                  <Table.Cell className="font-mono text-foreground text-right whitespace-nowrap tabular-nums">
+                    {formatCAD(p.market_value_cad, 0)}
+                  </Table.Cell>
+                  <Table.Cell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="h-1 w-16 bg-default rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${p.percentage}%`,
+                            background: "var(--chart-value)",
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-muted w-10 tabular-nums">
+                        {p.percentage.toFixed(1)}%
+                      </span>
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell className="font-mono text-right whitespace-nowrap">
+                    {p.unrealized_gain_cad !== null &&
+                    p.unrealized_pct !== null ? (
+                      <GainText
+                        amount={p.unrealized_gain_cad}
+                        pct={p.unrealized_pct}
+                      />
+                    ) : (
+                      <span className="text-muted text-xs">n/a</span>
+                    )}
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
 
       {exposure && exposure.income.by_security.length > 0 && (
         <Card
@@ -418,10 +487,8 @@ export default function Portfolio() {
       )}
 
       {!scope && empty.length > 0 && (
-        <div className="bg-muted border border-border rounded-xl p-5">
-          <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-3">
-            Awaiting first import
-          </div>
+        <div className="bg-surface border border-border rounded-xl p-5">
+          <div className="text-sm text-muted mb-3">Awaiting first import</div>
           <div className="space-y-2">
             {empty.map((a) => (
               <div
@@ -429,7 +496,7 @@ export default function Portfolio() {
                 className="flex items-center justify-between text-sm"
               >
                 <span className="text-foreground">{a.account_name}</span>
-                <span className="text-xs text-muted-foreground font-mono">
+                <span className="text-xs text-muted font-mono">
                   {a.institution}
                 </span>
               </div>
@@ -438,58 +505,6 @@ export default function Portfolio() {
         </div>
       )}
     </div>
-  );
-}
-
-function PositionRow({
-  position: p,
-  scoped,
-}: {
-  position: ConsolidatedPosition;
-  scoped: boolean;
-}) {
-  return (
-    <tr className="hover:bg-background/50 transition-colors">
-      <td className="px-4 py-2.5">
-        <div className="text-sm font-mono text-foreground">{p.security}</div>
-        <div className="text-xs text-muted-foreground truncate max-w-sm">
-          {!scoped && p.held_in.length > 1
-            ? p.held_in
-                .map((h) => `${h.account_name} ${h.units.toLocaleString()}`)
-                .join(" · ")
-            : (p.description ?? p.sector)}
-        </div>
-      </td>
-      <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right tabular-nums">
-        {p.units.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-      </td>
-      <td className="px-4 py-2.5 text-sm font-mono text-foreground text-right whitespace-nowrap tabular-nums">
-        {formatCAD(p.market_value_cad, 0)}
-      </td>
-      <td className="px-4 py-2.5 text-right">
-        <div className="flex items-center justify-end gap-2">
-          <div className="h-1 w-16 bg-background rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${p.percentage}%`,
-                background: "var(--chart-value)",
-              }}
-            />
-          </div>
-          <span className="text-xs font-mono text-muted-foreground w-10 tabular-nums">
-            {p.percentage.toFixed(1)}%
-          </span>
-        </div>
-      </td>
-      <td className="px-4 py-2.5 text-sm font-mono text-right whitespace-nowrap">
-        {p.unrealized_gain_cad !== null && p.unrealized_pct !== null ? (
-          <GainText amount={p.unrealized_gain_cad} pct={p.unrealized_pct} />
-        ) : (
-          <span className="text-muted-foreground text-xs">n/a</span>
-        )}
-      </td>
-    </tr>
   );
 }
 
@@ -503,14 +518,12 @@ function Metric({
   hint: string;
 }) {
   return (
-    <div className="bg-muted border border-border rounded-xl p-5">
-      <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-2">
-        {label}
-      </div>
+    <div className="bg-surface border border-border rounded-xl p-5">
+      <div className="text-sm text-muted mb-2">{label}</div>
       <div className="text-2xl font-light font-mono text-foreground tracking-tight">
         {value}
       </div>
-      <div className="text-xs text-muted-foreground mt-1.5 truncate">{hint}</div>
+      <div className="text-xs text-muted mt-1.5 truncate">{hint}</div>
     </div>
   );
 }

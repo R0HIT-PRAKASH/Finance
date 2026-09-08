@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Table } from "@heroui/react";
 import {
   api,
   PerformanceSeries,
@@ -56,11 +57,9 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-muted border border-border rounded-xl p-5 mb-4">
+    <div className="bg-surface border border-border rounded-xl p-5 mb-4">
       <div className="text-sm font-medium text-foreground">{title}</div>
-      {note && (
-        <div className="mt-1 mb-4 text-xs text-muted-foreground">{note}</div>
-      )}
+      {note && <div className="mt-1 mb-4 text-xs text-muted">{note}</div>}
       {!note && <div className="mb-4" />}
       {children}
     </div>
@@ -76,7 +75,7 @@ function Legend({ items }: { items: { label: string; color: string }[] }) {
             className="w-3 h-0.5 rounded-full"
             style={{ background: i.color }}
           />
-          <span className="text-muted-foreground">{i.label}</span>
+          <span className="text-muted">{i.label}</span>
         </div>
       ))}
     </div>
@@ -86,15 +85,15 @@ function Legend({ items }: { items: { label: string; color: string }[] }) {
 function ValueTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-background border border-border rounded-lg px-3 py-2 text-xs shadow-lg">
-      <div className="font-mono text-muted-foreground mb-1.5">{label}</div>
+    <div className="bg-overlay border border-border rounded-lg px-3 py-2 text-xs shadow-lg">
+      <div className="font-mono text-muted mb-1.5">{label}</div>
       {payload.map((p: any) => (
         <div key={p.name} className="flex items-center gap-3 whitespace-nowrap">
           <span
             className="w-2 h-2 rounded-full shrink-0"
             style={{ background: p.color }}
           />
-          <span className="text-muted-foreground">{p.name}</span>
+          <span className="text-muted">{p.name}</span>
           <span className="ml-auto font-mono text-foreground">
             {formatCAD(p.value)}
           </span>
@@ -108,9 +107,9 @@ function ReturnsTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   return (
-    <div className="bg-background border border-border rounded-lg px-3 py-2 text-xs shadow-lg">
-      <div className="font-mono text-muted-foreground mb-1.5">{row.label}</div>
-      <div className="text-muted-foreground">
+    <div className="bg-overlay border border-border rounded-lg px-3 py-2 text-xs shadow-lg">
+      <div className="font-mono text-muted mb-1.5">{row.label}</div>
+      <div className="text-muted">
         {row.from} to {row.to}
       </div>
     </div>
@@ -133,14 +132,12 @@ export default function Performance() {
 
   if (loading) {
     return (
-      <div className="text-center py-16 text-muted-foreground text-sm">
-        Loading...
-      </div>
+      <div className="text-center py-16 text-muted text-sm">Loading...</div>
     );
   }
   if (!series || series.points.length === 0) {
     return (
-      <div className="text-center py-16 text-muted-foreground text-sm">
+      <div className="text-center py-16 text-muted text-sm">
         No activity imported yet, so there is nothing to chart.
       </div>
     );
@@ -164,7 +161,7 @@ export default function Performance() {
     <div>
       <div className="mb-7">
         <h2 className="text-xl font-medium text-foreground">Performance</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted mt-1">
           Growth since {points[0].date}, when the activity record begins.
         </p>
       </div>
@@ -286,14 +283,14 @@ export default function Performance() {
                   dataKey="index"
                   position="right"
                   formatter={formatPct}
-                  className="fill-muted-foreground"
+                  className="fill-muted"
                   fontSize={11}
                 />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
           {returnRows.some((r) => r.short_window) && (
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="text-xs text-muted mt-2">
               Windows under three months are mostly noise and say little about
               how the portfolio is doing.
             </p>
@@ -345,45 +342,43 @@ export default function Performance() {
         </Card>
       )}
 
-      <div className="bg-muted border border-border rounded-xl">
-        <div className="px-5 py-4 border-b border-border text-sm font-medium text-foreground">
-          The same data as a table
-        </div>
-        <table className="w-full">
-          <thead>
-            <tr>
-              {["Date", "Value", "Invested", "Gain"].map((h, i) => (
-                <th
-                  key={h}
-                  className={`text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-2.5 border-b border-border ${i === 0 ? "text-left" : "text-right"}`}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {points.map((p: SeriesPoint) => (
-              <tr key={p.date} className="hover:bg-background/50">
-                <td className="px-4 py-2 text-sm font-mono text-muted-foreground">
-                  {p.date}
-                </td>
-                <td className="px-4 py-2 text-sm font-mono text-right tabular-nums">
-                  {formatCAD(p.value_cad)}
-                </td>
-                <td className="px-4 py-2 text-sm font-mono text-right tabular-nums text-muted-foreground">
-                  {formatCAD(p.invested_cad)}
-                </td>
-                <td
-                  className={`px-4 py-2 text-sm font-mono text-right tabular-nums ${p.gain_cad >= 0 ? "text-primary" : "text-destructive"}`}
-                >
-                  {formatCAD(p.gain_cad)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="text-sm font-medium text-foreground mb-3">
+        The same data as a table
       </div>
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Performance by date">
+            <Table.Header>
+              <Table.Column isRowHeader>Date</Table.Column>
+              <Table.Column>Value</Table.Column>
+              <Table.Column>Invested</Table.Column>
+              <Table.Column>Gain</Table.Column>
+            </Table.Header>
+            <Table.Body>
+              {points.map((p: SeriesPoint) => (
+                <Table.Row key={p.date}>
+                  <Table.Cell className="font-mono text-muted">
+                    {p.date}
+                  </Table.Cell>
+                  <Table.Cell className="font-mono text-right tabular-nums">
+                    {formatCAD(p.value_cad)}
+                  </Table.Cell>
+                  <Table.Cell className="font-mono text-right tabular-nums text-muted">
+                    {formatCAD(p.invested_cad)}
+                  </Table.Cell>
+                  <Table.Cell
+                    className={`font-mono text-right tabular-nums ${
+                      p.gain_cad >= 0 ? "text-success" : "text-danger"
+                    }`}
+                  >
+                    {formatCAD(p.gain_cad)}
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
     </div>
   );
 }
@@ -406,11 +401,11 @@ function IncomeRow({
         className="w-2.5 h-2.5 rounded-full shrink-0"
         style={{ background: color }}
       />
-      <span className="text-muted-foreground">{label}</span>
+      <span className="text-muted">{label}</span>
       <span className="ml-auto font-mono text-foreground tabular-nums">
         {formatCAD(amount, 2)}
       </span>
-      <span className="w-14 text-right font-mono text-xs text-muted-foreground tabular-nums">
+      <span className="w-14 text-right font-mono text-xs text-muted tabular-nums">
         {share.toFixed(1)}%
       </span>
     </div>
@@ -429,22 +424,20 @@ function Stat({
   positive?: boolean;
 }) {
   return (
-    <div className="bg-muted border border-border rounded-xl p-5">
-      <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-2">
-        {label}
-      </div>
+    <div className="bg-surface border border-border rounded-xl p-5">
+      <div className="text-sm text-muted mb-2">{label}</div>
       <div
         className={`text-2xl font-light font-mono tracking-tight ${
           positive === undefined
             ? "text-foreground"
             : positive
-              ? "text-primary"
-              : "text-destructive"
+              ? "text-success"
+              : "text-danger"
         }`}
       >
         {value}
       </div>
-      {hint && <div className="text-xs text-muted-foreground mt-1.5">{hint}</div>}
+      {hint && <div className="text-xs text-muted mt-1.5">{hint}</div>}
     </div>
   );
 }
