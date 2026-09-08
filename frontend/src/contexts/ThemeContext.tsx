@@ -40,8 +40,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const htmlElement = document.documentElement;
-    if (resolvedTheme === "light") {
-      htmlElement.setAttribute("data-theme", "light");
+    if (resolvedTheme === "dark") {
+      htmlElement.setAttribute("data-theme", "dark");
     } else {
       htmlElement.removeAttribute("data-theme");
     }
