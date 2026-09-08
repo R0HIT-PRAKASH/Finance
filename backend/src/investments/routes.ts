@@ -7,6 +7,9 @@ import { PerformanceRepository } from "./performance.repository";
 import { ReturnsRepository } from "./returns.repository";
 import { MetadataRepository } from "./metadata.repository";
 import { ExposureRepository } from "./exposure.repository";
+import { PlanSummaryRepository } from "./plan-summary.repository";
+import { pdfToText } from "./pdf";
+import { parseCanadaLifeSummary } from "../parsers/canadalife-summary.parser";
 import { parseInvestorlineActivity } from "../parsers/investorline-activity.parser";
 import { parseInvestorlineHoldings } from "../parsers/investorline-holdings.parser";
 
@@ -49,6 +52,32 @@ router.post("/activity/import", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Failed to import activity:", err);
     res.status(500).json({ error: "Failed to import activity" });
+  }
+});
+
+// Group-plan statements arrive as PDF, so the file is posted base64 encoded.
+router.post("/plan-summary/import", async (req: Request, res: Response) => {
+  const { pdf_base64 } = req.body;
+  if (!pdf_base64) {
+    res.status(400).json({ error: "pdf_base64 is required" });
+    return;
+  }
+  try {
+    const text = await pdfToText(Buffer.from(pdf_base64, "base64"));
+    const summary = parseCanadaLifeSummary(text);
+    res.status(201).json(await PlanSummaryRepository.save(summary));
+  } catch (err) {
+    console.error("Failed to import plan summary:", err);
+    const message = err instanceof Error ? err.message : "Import failed";
+    res.status(400).json({ error: message });
+  }
+});
+
+router.get("/plan-summary", async (_req: Request, res: Response) => {
+  try {
+    res.json(await PlanSummaryRepository.findAll());
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch plan summaries" });
   }
 });
 
