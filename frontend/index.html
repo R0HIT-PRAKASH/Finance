@@ -11,15 +11,10 @@
   <body>
     <div id="root"></div>
     <script>
-      const theme = localStorage.getItem("fintrack-theme");
-      if (theme === "dark") {
-        document.documentElement.setAttribute("data-theme", "dark");
-      } else if (theme === "light") {
-        document.documentElement.removeAttribute("data-theme");
-      } else {
-        const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        if (isDark) document.documentElement.setAttribute("data-theme", "dark");
-      }
+      try {
+        const theme = localStorage.getItem("fintrack-theme");
+        if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
+      } catch {}
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
