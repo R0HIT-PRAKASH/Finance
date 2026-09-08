@@ -17,6 +17,15 @@
     --destructive: 0 100% 60%;
     --destructive-foreground: 0 0% 100%;
     --radius: 0.5rem;
+
+    /* Chart series. Validated for colour-vision deficiency against the card
+       surface (--muted), not the page background. Do not substitute by eye. */
+    --chart-value: #2a78d6;
+    --chart-benchmark: #eb6834;
+    --chart-invested-fill: #dedcd4;
+    --chart-invested-stroke: #b9b7ae;
+    --chart-grid: #e1e0d9;
+    --chart-axis: #898781;
   }
 
   [data-theme="dark"] {
@@ -31,6 +40,14 @@
     --accent-foreground: 0 0% 4%;
     --destructive: 0 100% 65%;
     --destructive-foreground: 0 0% 91%;
+
+    /* Stepped for the dark surface, not an automatic flip of the light values. */
+    --chart-value: #3987e5;
+    --chart-benchmark: #d95926;
+    --chart-invested-fill: #2f2f2c;
+    --chart-invested-stroke: #4a4a45;
+    --chart-grid: #2c2c2a;
+    --chart-axis: #898781;
   }
 }
 

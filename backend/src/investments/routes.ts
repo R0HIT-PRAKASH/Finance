@@ -4,6 +4,7 @@ import { PricesRepository } from "./prices.repository";
 import { ActivityRepository } from "./activity.repository";
 import { HoldingsRepository } from "./holdings.repository";
 import { PerformanceRepository } from "./performance.repository";
+import { ReturnsRepository } from "./returns.repository";
 import { parseInvestorlineActivity } from "../parsers/investorline-activity.parser";
 import { parseInvestorlineHoldings } from "../parsers/investorline-holdings.parser";
 
@@ -46,6 +47,18 @@ router.post("/activity/import", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Failed to import activity:", err);
     res.status(500).json({ error: "Failed to import activity" });
+  }
+});
+
+router.get("/returns", async (req: Request, res: Response) => {
+  try {
+    const accountId = req.query.account_id
+      ? parseInt(req.query.account_id as string)
+      : undefined;
+    res.json(await ReturnsRepository.summary(accountId));
+  } catch (err) {
+    console.error("Failed to compute returns:", err);
+    res.status(500).json({ error: "Failed to compute returns" });
   }
 });
 

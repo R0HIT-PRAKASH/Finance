@@ -64,12 +64,12 @@ export const PricesRepository = {
         await client.query("BEGIN");
         for (const bar of bars) {
           const result = await client.query(
-            `INSERT INTO prices (date, security, price, currency, source)
-             VALUES ($1, $2, $3, $4, 'market')
+            `INSERT INTO prices (date, security, price, adj_close, currency, source)
+             VALUES ($1, $2, $3, $4, $5, 'market')
              ON CONFLICT (date, security, currency) DO UPDATE
-             SET price = EXCLUDED.price
+             SET price = EXCLUDED.price, adj_close = EXCLUDED.adj_close
              WHERE prices.source <> 'statement'`,
-            [bar.date, s.symbol, bar.close, bar.currency],
+            [bar.date, s.symbol, bar.close, bar.adj_close, bar.currency],
           );
           barsWritten += result.rowCount ?? 0;
         }

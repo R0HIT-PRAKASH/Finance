@@ -51,6 +51,8 @@ export type HistoricalBar = {
   ticker: string;
   date: string;
   close: number;
+  /** Distributions reinvested. Null when the feed omits it. */
+  adj_close: number | null;
   currency: string;
 };
 
@@ -77,6 +79,7 @@ export async function fetchHistory(
             ticker,
             date: new Date(q.date).toISOString().slice(0, 10),
             close: q.close,
+            adj_close: typeof q.adjclose === "number" ? q.adjclose : null,
             currency,
           },
         ]

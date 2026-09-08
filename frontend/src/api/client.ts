@@ -66,6 +66,10 @@ export const api = {
       request<PriceRefreshResult>("/investments/prices/refresh", {
         method: "POST",
       }),
+    performance: (accountId?: number) =>
+      request<PerformanceSeries>(
+        `/investments/performance${accountId ? `?account_id=${accountId}` : ""}`,
+      ),
   },
   netWorth: () => request<NetWorth>("/net-worth"),
   categorization: {
@@ -291,6 +295,23 @@ export type PriceRefreshResult = {
   failed: string[];
   fx_updated: boolean;
   fx_date: string | null;
+};
+
+export type SeriesPoint = {
+  date: string;
+  value_cad: number;
+  /** Opening value plus every contribution since, i.e. money you put in. */
+  invested_cad: number;
+  /** Value minus invested: growth over the charted window, not lifetime. */
+  gain_cad: number;
+  benchmark_cad: number | null;
+};
+
+export type PerformanceSeries = {
+  account_id: number | null;
+  points: SeriesPoint[];
+  benchmark: string | null;
+  opening_value_cad: number;
 };
 
 export type NetWorth = {

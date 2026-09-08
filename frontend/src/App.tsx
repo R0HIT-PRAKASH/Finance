@@ -5,6 +5,7 @@ import Import from "./pages/Import";
 import Transactions from "./pages/Transactions";
 import Rules from "./pages/Rules";
 import Portfolio from "./pages/Portfolio";
+import Performance from "./pages/Performance";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ThemeToggle } from "./components/ThemeToggle";
 
@@ -21,7 +22,10 @@ const navSections: { heading: string | null; items: NavItem[] }[] = [
   },
   {
     heading: "Investments",
-    items: [{ to: "/portfolio", label: "Portfolio", icon: "◭" }],
+    items: [
+      { to: "/portfolio", label: "Portfolio", icon: "◭" },
+      { to: "/performance", label: "Performance", icon: "◈" },
+    ],
   },
 ];
 
@@ -80,6 +84,7 @@ function AppContent() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/performance" element={<Performance />} />
           </Routes>
         </div>
       </main>
