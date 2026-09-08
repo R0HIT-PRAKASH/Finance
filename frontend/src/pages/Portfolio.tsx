@@ -361,8 +361,9 @@ export default function Portfolio() {
                   Tax treatment
                 </div>
                 <div className="text-xs text-muted mb-4">
-                  Gains in a registered account are never taxed. Gains in a
-                  taxable one are realised when you sell.
+                  TFSA gains are never taxed; RRSP withdrawals are taxed as
+                  income. In taxable accounts, capital gains are taxed on sale,
+                  but dividends and interest are taxed annually.
                 </div>
                 <div className="space-y-3">
                   {exposure.tax.map((t) => (
