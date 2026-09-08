@@ -3,6 +3,7 @@ import { PortfolioRepository } from "./portfolio.repository";
 import { PricesRepository } from "./prices.repository";
 import { ActivityRepository } from "./activity.repository";
 import { HoldingsRepository } from "./holdings.repository";
+import { PerformanceRepository } from "./performance.repository";
 import { parseInvestorlineActivity } from "../parsers/investorline-activity.parser";
 import { parseInvestorlineHoldings } from "../parsers/investorline-holdings.parser";
 
@@ -45,6 +46,28 @@ router.post("/activity/import", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Failed to import activity:", err);
     res.status(500).json({ error: "Failed to import activity" });
+  }
+});
+
+router.get("/performance", async (req: Request, res: Response) => {
+  try {
+    const accountId = req.query.account_id
+      ? parseInt(req.query.account_id as string)
+      : undefined;
+    res.json(await PerformanceRepository.series(accountId));
+  } catch (err) {
+    console.error("Failed to build performance series:", err);
+    res.status(500).json({ error: "Failed to build performance series" });
+  }
+});
+
+router.post("/prices/backfill", async (req: Request, res: Response) => {
+  try {
+    res.json(await PricesRepository.backfill(req.body?.from, req.body?.to));
+  } catch (err) {
+    console.error("Failed to backfill prices:", err);
+    const message = err instanceof Error ? err.message : "Backfill failed";
+    res.status(500).json({ error: message });
   }
 });
 

@@ -1,5 +1,5 @@
 import pool from "../db/pool";
-import { fetchQuotes, fetchUsdCad } from "./quotes";
+import { fetchHistory, fetchQuotes, fetchUsdCad } from "./quotes";
 
 export type RefreshResult = {
   quoted: number;
@@ -11,7 +11,86 @@ export type RefreshResult = {
   fx_date: string | null;
 };
 
+export type BackfillResult = {
+  from: string;
+  to: string;
+  securities: number;
+  bars_written: number;
+  failed: string[];
+};
+
 export const PricesRepository = {
+  /**
+   * Daily closes for every quotable security and benchmark. Statement prices
+   * win on any date they exist for, since they are the authoritative record.
+   */
+  backfill: async (
+    fromArg?: string,
+    toArg?: string,
+  ): Promise<BackfillResult> => {
+    // Default to the span of recorded activity: earlier prices value nothing.
+    const { rows: span } = await pool.query(
+      "SELECT to_char(min(date),'YYYY-MM-DD') AS first FROM investment_activity",
+    );
+    const from = fromArg ?? span[0]?.first;
+    if (!from) {
+      throw new Error("No activity on file; pass an explicit from date");
+    }
+    const to = toArg ?? new Date().toISOString().slice(0, 10);
+
+    const { rows: securities } = await pool.query(
+      "SELECT symbol, ticker FROM securities WHERE ticker IS NOT NULL ORDER BY symbol",
+    );
+
+    const failed: string[] = [];
+    let barsWritten = 0;
+
+    for (const s of securities) {
+      let bars: Awaited<ReturnType<typeof fetchHistory>> = [];
+      try {
+        bars = await fetchHistory(s.ticker, from, to);
+      } catch (err) {
+        console.error(`History failed for ${s.ticker}:`, err);
+        failed.push(s.symbol);
+        continue;
+      }
+      if (bars.length === 0) {
+        failed.push(s.symbol);
+        continue;
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        for (const bar of bars) {
+          const result = await client.query(
+            `INSERT INTO prices (date, security, price, currency, source)
+             VALUES ($1, $2, $3, $4, 'market')
+             ON CONFLICT (date, security, currency) DO UPDATE
+             SET price = EXCLUDED.price
+             WHERE prices.source <> 'statement'`,
+            [bar.date, s.symbol, bar.close, bar.currency],
+          );
+          barsWritten += result.rowCount ?? 0;
+        }
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    return {
+      from,
+      to,
+      securities: securities.length - failed.length,
+      bars_written: barsWritten,
+      failed,
+    };
+  },
+
   refresh: async (): Promise<RefreshResult> => {
     const { rows: securities } = await pool.query(
       "SELECT symbol, ticker FROM securities ORDER BY symbol",

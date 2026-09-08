@@ -47,6 +47,43 @@ export async function fetchQuotes(tickers: string[]): Promise<Quote[]> {
   });
 }
 
+export type HistoricalBar = {
+  ticker: string;
+  date: string;
+  close: number;
+  currency: string;
+};
+
+/**
+ * Daily closes for one ticker. Used to value past positions, so the whole
+ * series is returned rather than a single point.
+ */
+export async function fetchHistory(
+  ticker: string,
+  from: string,
+  to: string,
+): Promise<HistoricalBar[]> {
+  const result: any = await yf.chart(ticker, {
+    period1: from,
+    period2: to,
+    interval: "1d",
+  });
+  const currency = result?.meta?.currency ?? "CAD";
+
+  return (result?.quotes ?? []).flatMap((q: any) =>
+    typeof q?.close === "number" && q?.date
+      ? [
+          {
+            ticker,
+            date: new Date(q.date).toISOString().slice(0, 10),
+            close: q.close,
+            currency,
+          },
+        ]
+      : [],
+  );
+}
+
 /** Bank of Canada's official rate. No API key, unlike the quote feed. */
 export async function fetchUsdCad(): Promise<FxRate | null> {
   const res = await fetch(BOC_USDCAD);
