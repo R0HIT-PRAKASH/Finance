@@ -4,10 +4,13 @@
 /* Chart series. Recharts reads these as raw var() strings, so they stay plain
    custom properties rather than Tailwind theme tokens.
 
-   Validated for colour-vision deficiency against the card surface, not the page
-   background. Do not substitute by eye. Values below are carried over unchanged
-   from the pre-HeroUI theme; the surface they were validated against has since
-   changed to HeroUI's --surface, so they are due a re-check. */
+   Validated for colour-vision deficiency against the card surface (--surface),
+   not the page background: charts render inside cards, so the page colour is
+   the wrong reference. Do not substitute by eye.
+
+   Known gap: --chart-income is 2.82:1 against the light card, short of the 3:1
+   WCAG wants for non-text graphics. Predates the HeroUI move, which raised it
+   from 2.47:1. */
 :root {
   --chart-value: #2a78d6;
   --chart-benchmark: #eb6834;
