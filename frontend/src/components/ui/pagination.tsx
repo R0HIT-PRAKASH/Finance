@@ -1,4 +1,8 @@
-import { Button } from "./button";
+import {
+  ListBox,
+  Pagination as HeroPagination,
+  Select,
+} from "@heroui/react";
 
 interface PaginationProps {
   page: number;
@@ -30,6 +34,9 @@ export function getPageNumbers(
   return pages;
 }
 
+// HeroUI's Pagination renders parts only, it does not derive page numbers, so
+// getPageNumbers above stays the source of that logic. Pages are zero-indexed
+// internally and rendered as +1.
 export function Pagination({
   page,
   totalPages,
@@ -43,85 +50,78 @@ export function Pagination({
   const to = Math.min((page + 1) * pageSize, total);
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <span>Rows</span>
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(parseInt(e.target.value))}
-          className="h-8 rounded-md border border-border bg-muted px-2 text-xs text-foreground outline-none"
-        >
-          {PAGE_SIZE_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <span className="text-xs">
-          {from}–{to} of {total}
+    <HeroPagination
+      className="w-full px-4 py-3 border-t border-border"
+      size="sm"
+    >
+      <HeroPagination.Summary>
+        <span className="flex items-center gap-2">
+          <span>Rows</span>
+          <Select
+            aria-label="Rows per page"
+            className="w-24"
+            value={String(pageSize)}
+            onChange={(value) =>
+              value !== null && onPageSizeChange(Number(value))
+            }
+          >
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                {PAGE_SIZE_OPTIONS.map((s) => (
+                  <ListBox.Item key={s} id={String(s)} textValue={String(s)}>
+                    {s}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
+          <span>
+            {from}–{to} of {total}
+          </span>
         </span>
-      </div>
+      </HeroPagination.Summary>
 
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onPageChange(0)}
-          disabled={page === 0}
-          className="text-xs px-2"
-        >
-          «
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onPageChange(page - 1)}
-          disabled={page === 0}
-          className="text-xs px-2"
-        >
-          ‹
-        </Button>
+      <HeroPagination.Content>
+        <HeroPagination.Item>
+          <HeroPagination.Previous
+            isDisabled={page === 0}
+            onPress={() => onPageChange(page - 1)}
+          >
+            <HeroPagination.PreviousIcon />
+          </HeroPagination.Previous>
+        </HeroPagination.Item>
 
         {pageNumbers.map((p, i) =>
           p === "..." ? (
-            <span
-              key={`ellipsis-${i}`}
-              className="px-2 text-muted-foreground text-sm"
-            >
-              …
-            </span>
+            <HeroPagination.Item key={`ellipsis-${i}`}>
+              <HeroPagination.Ellipsis />
+            </HeroPagination.Item>
           ) : (
-            <Button
-              key={p}
-              variant="ghost"
-              size="sm"
-              onClick={() => onPageChange(p as number)}
-              className={`text-xs px-3 ${page === p ? "bg-primary/10 text-primary border border-primary/20" : ""}`}
-            >
-              {(p as number) + 1}
-            </Button>
+            <HeroPagination.Item key={p}>
+              <HeroPagination.Link
+                isActive={page === p}
+                onPress={() => onPageChange(p)}
+              >
+                {p + 1}
+              </HeroPagination.Link>
+            </HeroPagination.Item>
           ),
         )}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onPageChange(page + 1)}
-          disabled={page >= totalPages - 1}
-          className="text-xs px-2"
-        >
-          ›
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onPageChange(totalPages - 1)}
-          disabled={page >= totalPages - 1}
-          className="text-xs px-2"
-        >
-          »
-        </Button>
-      </div>
-    </div>
+        <HeroPagination.Item>
+          <HeroPagination.Next
+            isDisabled={page >= totalPages - 1}
+            onPress={() => onPageChange(page + 1)}
+          >
+            <HeroPagination.NextIcon />
+          </HeroPagination.Next>
+        </HeroPagination.Item>
+      </HeroPagination.Content>
+    </HeroPagination>
   );
 }

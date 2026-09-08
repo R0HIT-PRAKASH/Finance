@@ -1,13 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, AccountBalance, NetWorth } from "../api/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Button, Input, Label, Modal, TextField } from "@heroui/react";
 import { DatePicker } from "@/components/ui/datepicker";
 
 function formatCAD(amount: number) {
@@ -85,26 +78,20 @@ export default function Dashboard() {
     <div>
       <div className="mb-7">
         <h2 className="text-xl font-medium text-foreground">Dashboard</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Your financial overview
-        </p>
+        <p className="text-sm text-muted mt-1">Your financial overview</p>
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-muted-foreground text-sm">
-          Loading...
-        </div>
+        <div className="text-center py-16 text-muted text-sm">Loading...</div>
       ) : (
         <>
-          <div className="bg-muted border border-border rounded-xl p-6 mb-4">
-            <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Net Worth
-            </div>
+          <div className="bg-surface border border-border rounded-xl p-6 mb-4">
+            <div className="text-sm text-muted mb-2">Net worth</div>
             <div className="text-4xl font-light font-mono text-foreground tracking-tight">
               {formatCAD(netWorth?.net_worth ?? 0)}
             </div>
             {netWorth && (
-              <div className="text-xs text-muted-foreground mt-2 flex flex-wrap gap-x-5 gap-y-1">
+              <div className="text-xs text-muted mt-2 flex flex-wrap gap-x-5 gap-y-1">
                 <span>Banking {formatCAD(netWorth.banking.total)}</span>
                 <span>
                   Investments {formatCAD(netWorth.investments.total)}
@@ -124,14 +111,16 @@ export default function Dashboard() {
               return (
                 <div
                   key={type}
-                  className="bg-muted border border-border rounded-xl p-5"
+                  className="bg-surface border border-border rounded-xl p-5"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
+                    <div className="text-sm font-medium text-muted">
                       {TYPE_LABELS[type]}
                     </div>
                     <div
-                      className={`text-sm font-mono font-medium ${total >= 0 ? "text-primary" : "text-destructive"}`}
+                      className={`text-sm font-mono font-medium ${
+                        total >= 0 ? "text-success" : "text-danger"
+                      }`}
                     >
                       {formatCAD(total)}
                     </div>
@@ -147,11 +136,11 @@ export default function Dashboard() {
                           <div className="text-sm text-foreground">
                             {account.name}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted">
                             {account.institution}
                           </div>
                           {account.opening_balance_date && (
-                            <div className="text-xs text-muted-foreground/60 font-mono">
+                            <div className="text-xs text-muted/60 font-mono">
                               baseline{" "}
                               {account.opening_balance_date.slice(0, 10)}
                             </div>
@@ -159,27 +148,30 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center gap-3">
                           <div
-                            className={`text-sm font-mono ${account.balance >= 0 ? "text-foreground" : "text-destructive"}`}
+                            className={`text-sm font-mono ${
+                              account.balance >= 0
+                                ? "text-foreground"
+                                : "text-danger"
+                            }`}
                           >
                             {account.opening_balance_date ? (
                               formatCAD(account.balance)
                             ) : (
-                              <span className="text-muted-foreground text-xs">
+                              <span className="text-muted text-xs">
                                 no baseline
                               </span>
                             )}
                           </div>
                           {account.registered_type &&
                             account.registered_type !== "none" && (
-                              <div className="text-xs text-primary/70 font-mono">
+                              <div className="text-xs text-accent font-mono">
                                 {account.registered_type}
                               </div>
                             )}
                           <Button
-                            variant="ghost"
                             size="sm"
-                            className="text-xs"
-                            onClick={() => openBalanceForm(account)}
+                            variant="ghost"
+                            onPress={() => openBalanceForm(account)}
                           >
                             {account.opening_balance_date
                               ? "Update"
@@ -196,68 +188,70 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Set balance dialog */}
-      <Dialog
-        open={!!balanceForm}
+      <Modal.Backdrop
+        isOpen={!!balanceForm}
         onOpenChange={(open) => !open && setBalanceForm(null)}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {balanceForm?.account.opening_balance_date ? "Update" : "Set"}{" "}
-              Balance: {balanceForm?.account.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
-                Current Balance
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="e.g. 4823.50 or -1234.56 for credit"
-                value={balanceForm?.balance ?? ""}
-                onChange={(e) =>
-                  setBalanceForm((f) =>
-                    f ? { ...f, balance: e.target.value } : f,
-                  )
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the exact balance shown in your bank right now. Use
-                negative for credit card debt.
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
-                As of Date
-              </label>
-              <DatePicker
-                value={balanceForm?.date ?? ""}
-                onChange={(date) =>
-                  setBalanceForm((f) => (f ? { ...f, date } : f))
-                }
-                placeholder="Select date"
-              />
-              <p className="text-xs text-muted-foreground">
-                Only transactions after this date will adjust the balance.
-              </p>
-            </div>
-            <div className="flex gap-2 justify-end pt-2">
-              <Button variant="outline" onClick={() => setBalanceForm(null)}>
+        <Modal.Container>
+          <Modal.Dialog className="sm:max-w-md">
+            <Modal.CloseTrigger />
+            <Modal.Header>
+              <Modal.Heading>
+                {balanceForm?.account.opening_balance_date ? "Update" : "Set"}{" "}
+                balance: {balanceForm?.account.name}
+              </Modal.Heading>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="space-y-4">
+                <TextField
+                  fullWidth
+                  type="number"
+                  value={balanceForm?.balance ?? ""}
+                  onChange={(balance) =>
+                    setBalanceForm((f) => (f ? { ...f, balance } : f))
+                  }
+                >
+                  <Label>Current balance</Label>
+                  <Input
+                    step="0.01"
+                    placeholder="e.g. 4823.50 or -1234.56 for credit"
+                  />
+                </TextField>
+                <p className="text-xs text-muted">
+                  Enter the exact balance shown in your bank right now. Use
+                  negative for credit card debt.
+                </p>
+
+                <div className="space-y-1.5">
+                  <Label>As of date</Label>
+                  <DatePicker
+                    value={balanceForm?.date ?? ""}
+                    onChange={(date) =>
+                      setBalanceForm((f) => (f ? { ...f, date } : f))
+                    }
+                    placeholder="Select date"
+                  />
+                  <p className="text-xs text-muted">
+                    Only transactions after this date will adjust the balance.
+                  </p>
+                </div>
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onPress={() => setBalanceForm(null)}>
                 Cancel
               </Button>
               <Button
-                onClick={handleSaveBalance}
-                disabled={saving || !balanceForm?.balance}
+                isDisabled={saving || !balanceForm?.balance}
+                isPending={saving}
+                onPress={handleSaveBalance}
               >
-                {saving ? "Saving..." : "Save Balance"}
+                {saving ? "Saving..." : "Save balance"}
               </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
     </div>
   );
 }

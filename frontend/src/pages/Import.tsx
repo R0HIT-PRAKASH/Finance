@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, Account } from "../api/client";
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { Button, Label, ListBox, Select, Table } from "@heroui/react";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
@@ -85,7 +84,9 @@ export default function Import() {
         parts.push(`${data.skipped} already on file`);
       }
       if (data.paired) {
-        parts.push(`${data.paired} transfer${data.paired === 1 ? "" : "s"} matched`);
+        parts.push(
+          `${data.paired} transfer${data.paired === 1 ? "" : "s"} matched`,
+        );
       }
       setSuccess(parts.join(" · "));
       setCsvContent("");
@@ -104,45 +105,51 @@ export default function Import() {
     <div>
       <div className="mb-7">
         <h2 className="text-xl font-medium text-foreground">Import</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted mt-1">
           Import transactions from your bank exports
         </p>
       </div>
 
-      <div className="bg-muted border border-border rounded-xl p-6 mb-6">
-        <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-5">
-          Import Transactions
-        </div>
-
+      <div className="bg-surface border border-border rounded-xl p-6 mb-6">
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
-              Account
-            </label>
             <Select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
+              fullWidth
+              placeholder="Select account"
+              value={accountId || null}
+              onChange={(value) => setAccountId(value ? String(value) : "")}
             >
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
+              <Label>Account</Label>
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  {accounts.map((a) => (
+                    <ListBox.Item
+                      key={a.id}
+                      id={String(a.id)}
+                      textValue={a.name}
+                    >
+                      {a.name}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
             </Select>
             {parserLabel && (
-              <p className="text-xs text-muted-foreground">
-                Using parser:{" "}
-                <span className="text-primary font-mono">{parserLabel}</span>
+              <p className="text-xs text-muted">
+                Using parser: <span className="text-accent">{parserLabel}</span>
               </p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
-              CSV File
-            </label>
+            <Label>CSV file</Label>
             <div
-              className="border border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/40 transition-colors"
+              className="border border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-accent/40 transition-colors"
               onClick={() => document.getElementById("csv-input")?.click()}
             >
               <input
@@ -155,75 +162,63 @@ export default function Import() {
               {filename ? (
                 <p className="text-sm text-foreground font-mono">{filename}</p>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Click to select a CSV file
-                </p>
+                <p className="text-sm text-muted">Click to select a CSV file</p>
               )}
             </div>
           </div>
 
           {error && (
-            <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+            <div className="text-sm text-danger-soft-foreground bg-danger-soft border border-danger/20 rounded-lg px-4 py-3">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="text-sm text-primary bg-primary/10 border border-primary/20 rounded-lg px-4 py-3">
+            <div className="text-sm text-accent-soft-foreground bg-accent-soft border border-accent/20 rounded-lg px-4 py-3">
               {success}
             </div>
           )}
 
           <Button
-            onClick={handleImport}
-            disabled={!csvContent || !accountId || loading}
+            isDisabled={!csvContent || !accountId || loading}
+            isPending={loading}
+            onPress={handleImport}
           >
-            {loading ? "Importing..." : "Import Transactions"}
+            {loading ? "Importing..." : "Import transactions"}
           </Button>
         </div>
       </div>
 
       {imported.length > 0 && (
-        <div className="bg-muted border border-border rounded-xl">
-          <div className="px-4 py-3 border-b border-border">
-            <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
-              Imported Transactions
-            </div>
-          </div>
-          <table className="w-full">
-            <thead>
-              <tr>
-                {["Date", "Description", "Amount"].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-3 border-b border-border"
-                  >
-                    {h}
-                  </th>
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Imported transactions">
+              <Table.Header>
+                <Table.Column isRowHeader>Date</Table.Column>
+                <Table.Column>Description</Table.Column>
+                <Table.Column>Amount</Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {imported.map((tx) => (
+                  <Table.Row key={tx.id}>
+                    <Table.Cell className="font-mono text-muted">
+                      {tx.date.slice(0, 10)}
+                    </Table.Cell>
+                    <Table.Cell>{tx.description}</Table.Cell>
+                    <Table.Cell
+                      className={`font-mono ${
+                        Number(tx.amount) >= 0 ? "text-success" : "text-danger"
+                      }`}
+                    >
+                      {Number(tx.amount) >= 0 ? "+" : ""}
+                      {Number(tx.amount).toFixed(2)}
+                    </Table.Cell>
+                  </Table.Row>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {imported.map((tx) => (
-                <tr
-                  key={tx.id}
-                  className="hover:bg-background/50 transition-colors"
-                >
-                  <td className="px-4 py-3 text-sm font-mono text-muted-foreground">
-                    {tx.date.slice(0, 10)}
-                  </td>
-                  <td className="px-4 py-3 text-sm">{tx.description}</td>
-                  <td
-                    className={`px-4 py-3 text-sm font-mono ${Number(tx.amount) >= 0 ? "text-primary" : "text-destructive"}`}
-                  >
-                    {Number(tx.amount) >= 0 ? "+" : ""}
-                    {Number(tx.amount).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
       )}
     </div>
   );
