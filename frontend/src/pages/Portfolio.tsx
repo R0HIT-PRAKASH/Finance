@@ -1,18 +1,19 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   api,
-  AccountPortfolio,
-  Allocation,
   ConsolidatedPosition,
+  Exposure,
   PortfolioResponse,
-  Position,
+  Slice,
 } from "../api/client";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 
-function formatCAD(amount: number) {
+function formatCAD(amount: number, maximumFractionDigits = 2) {
   return new Intl.NumberFormat("en-CA", {
     style: "currency",
     currency: "CAD",
+    maximumFractionDigits,
   }).format(amount);
 }
 
@@ -29,33 +30,99 @@ function GainText({ amount, pct }: { amount: number; pct: number }) {
   );
 }
 
+function Card({
+  title,
+  note,
+  children,
+  right,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="bg-muted border border-border rounded-xl mb-4">
+      <div className="flex items-start justify-between px-5 py-4 border-b border-border">
+        <div>
+          <div className="text-sm font-medium text-foreground">{title}</div>
+          {note && (
+            <div className="text-xs text-muted-foreground mt-0.5">{note}</div>
+          )}
+        </div>
+        {right}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Horizontal bars, never pie: proportions are easier to compare on a shared baseline. */
+function Breakdown({ rows }: { rows: Slice[] }) {
+  return (
+    <div className="space-y-3">
+      {rows.map((r) => (
+        <div key={r.label}>
+          <div className="flex items-baseline justify-between text-sm mb-1 gap-3">
+            <span className="text-foreground truncate">{r.label}</span>
+            <span className="font-mono text-muted-foreground text-xs whitespace-nowrap tabular-nums">
+              {r.percentage.toFixed(1)}% · {formatCAD(r.value_cad, 0)}
+            </span>
+          </div>
+          <div className="h-1 bg-background rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${r.percentage}%`,
+                background: "var(--chart-value)",
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Portfolio() {
   const [data, setData] = useState<PortfolioResponse | null>(null);
+  const [exposure, setExposure] = useState<Exposure | null>(null);
+  const [accountId, setAccountId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshNote, setRefreshNote] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
-  function load() {
-    return api.investments.portfolio().then(setData);
-  }
+  const scope = accountId ? parseInt(accountId) : undefined;
+
+  const load = useCallback(
+    () =>
+      Promise.all([
+        api.investments.portfolio(),
+        api.investments.exposure(scope),
+      ]).then(([p, e]) => {
+        setData(p);
+        setExposure(e);
+      }),
+    [scope],
+  );
 
   useEffect(() => {
     load().finally(() => setLoading(false));
-  }, []);
+  }, [load]);
 
   async function handleRefresh() {
     setRefreshing(true);
-    setRefreshNote(null);
+    setNote(null);
     try {
       const r = await api.investments.refreshPrices();
       const parts = [`Priced ${r.quoted} of ${r.requested}`];
       if (r.failed.length) parts.push(`${r.failed.length} failed`);
       if (r.unquotable.length) parts.push(`${r.unquotable.length} have no quote`);
       if (r.fx_updated) parts.push(`FX ${r.fx_date}`);
-      setRefreshNote(parts.join(" · "));
+      setNote(parts.join(" · "));
       await load();
     } catch (err) {
-      setRefreshNote(err instanceof Error ? err.message : "Refresh failed");
+      setNote(err instanceof Error ? err.message : "Refresh failed");
     } finally {
       setRefreshing(false);
     }
@@ -73,100 +140,285 @@ export default function Portfolio() {
   const { totals } = data;
   const funded = data.accounts.filter((a) => a.as_of !== null);
   const empty = data.accounts.filter((a) => a.as_of === null);
+  const selected = scope
+    ? funded.find((a) => a.account_id === scope)
+    : undefined;
 
-  // Snapshots are imported per account, so a single "as of" would be misleading.
-  const spansDates = totals.as_of_earliest !== totals.as_of_latest;
+  // Everything below the selector reflects the chosen scope.
+  const scopedValue = selected?.live_total_value_cad ?? totals.live_total_value_cad;
+  const scopedBook = selected?.book_value_cad ?? totals.book_value_cad;
+  const scopedGain = selected?.live_unrealized_cad ?? totals.live_unrealized_cad;
+  const scopedPct = selected?.live_unrealized_pct ?? totals.live_unrealized_pct;
+  const positions = scope
+    ? (selected?.positions ?? []).map((p) => ({
+        security: p.security,
+        description: p.description,
+        sector: p.sector,
+        units: p.units,
+        market_value_cad: p.live_value_cad ?? p.market_value_cad,
+        book_value_cad: p.book_value_cad,
+        unrealized_gain_cad: p.unrealized_gain_cad,
+        unrealized_pct:
+          p.book_value_cad && p.unrealized_gain_cad !== null
+            ? (p.unrealized_gain_cad / p.book_value_cad) * 100
+            : null,
+        percentage: 0,
+        held_in: [],
+      }))
+    : data.positions;
+
+  const scopedTotal = positions.reduce((t, p) => t + p.market_value_cad, 0);
+  const withShare = positions.map((p) => ({
+    ...p,
+    percentage: scope
+      ? scopedTotal === 0
+        ? 0
+        : (p.market_value_cad / scopedTotal) * 100
+      : p.percentage,
+  }));
+
+  const c = exposure?.concentration;
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-7">
+      <div className="flex items-start justify-between mb-7 gap-4">
         <div>
           <h2 className="text-xl font-medium text-foreground">Portfolio</h2>
           <p className="text-sm text-muted-foreground mt-1">
             {funded.length === 0
               ? "No holdings imported yet"
-              : spansDates
-                ? `Statements ${totals.as_of_earliest} to ${totals.as_of_latest} (varies by account)`
-                : `Statements as of ${totals.as_of_latest}`}
+              : totals.oldest_price_date
+                ? `Priced ${totals.oldest_price_date}`
+                : ""}
           </p>
         </div>
-        {funded.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+        <div className="flex items-center gap-2">
+          <Select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            className="w-52"
+          >
+            <option value="">All accounts</option>
+            {funded.map((a) => (
+              <option key={a.account_id} value={a.account_id}>
+                {a.account_name} · {a.institution}
+              </option>
+            ))}
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
             {refreshing ? "Refreshing..." : "Refresh prices"}
           </Button>
-        )}
+        </div>
       </div>
 
-      {refreshNote && (
+      {note && (
         <div className="text-sm text-muted-foreground bg-muted border border-border rounded-lg px-4 py-3 mb-4">
-          {refreshNote}
+          {note}
         </div>
       )}
 
-      {funded.length > 0 && (
-        <div className="bg-muted border border-border rounded-xl p-6 mb-4">
-          <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-2">
-            Total Value
-            {totals.oldest_price_date && (
-              <span className="ml-2 normal-case tracking-normal text-muted-foreground/60">
-                priced {totals.oldest_price_date}
-              </span>
-            )}
-          </div>
-          <div className="text-4xl font-light font-mono text-foreground tracking-tight">
-            {formatCAD(totals.live_total_value_cad)}
-          </div>
-          <div className="text-sm text-muted-foreground mt-3 flex flex-wrap gap-x-6 gap-y-1">
-            <span>Book {formatCAD(totals.book_value_cad)}</span>
+      <div className="bg-muted border border-border rounded-xl p-6 mb-4">
+        <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-2">
+          {selected ? selected.account_name : "Total value"}
+        </div>
+        <div className="text-4xl font-light font-mono text-foreground tracking-tight">
+          {formatCAD(scopedValue)}
+        </div>
+        <div className="text-sm text-muted-foreground mt-3 flex flex-wrap gap-x-6 gap-y-1">
+          {scopedBook !== null && <span>Book {formatCAD(scopedBook)}</span>}
+          {scopedGain !== null && scopedPct !== null ? (
             <span>
-              Unrealized{" "}
-              <GainText
-                amount={totals.live_unrealized_cad}
-                pct={totals.live_unrealized_pct}
-              />
+              Unrealized <GainText amount={scopedGain} pct={scopedPct} />
             </span>
-            {Math.abs(totals.live_total_value_cad - totals.total_value_cad) >
-              0.5 && (
-              <span>
-                Statement {formatCAD(totals.total_value_cad)}
-              </span>
-            )}
-            {totals.cash_cad !== 0 && (
-              <span>Cash {formatCAD(totals.cash_cad)}</span>
-            )}
-          </div>
-          {totals.accounts_without_basis > 0 && (
-            <p className="text-xs text-muted-foreground/70 mt-2">
-              Gain excludes {formatCAD(totals.market_value_without_basis)} across{" "}
-              {totals.accounts_without_basis} account
-              {totals.accounts_without_basis === 1 ? "" : "s"} that report no
-              cost basis.
-            </p>
+          ) : (
+            <span>No cost basis on file</span>
+          )}
+          {exposure && exposure.income.annual_cad > 0 && (
+            <span>
+              Income {formatCAD(exposure.income.annual_cad, 0)}/yr (
+              {exposure.income.yield_pct.toFixed(2)}%)
+            </span>
+          )}
+        </div>
+      </div>
+
+      {c && c.top_position && (
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <Metric
+            label="Largest position"
+            value={`${c.top_position.percentage.toFixed(1)}%`}
+            hint={c.top_position.security}
+          />
+          <Metric
+            label="Top five"
+            value={`${c.top_five_pct.toFixed(1)}%`}
+            hint={`of ${c.positions} positions`}
+          />
+          {c.largest_sector && (
+            <Metric
+              label="Largest sector"
+              value={`${c.largest_sector.percentage.toFixed(1)}%`}
+              hint={c.largest_sector.label}
+            />
           )}
         </div>
       )}
 
-      {data.positions.length > 0 && (
-        <PositionsCard positions={data.positions} />
+      {!scope && funded.length > 0 && (
+        <Card title="Accounts" note="Select one above to scope the page to it.">
+          <table className="w-full">
+            <tbody>
+              {funded.map((a) => (
+                <tr
+                  key={a.account_id}
+                  className="hover:bg-background/50 transition-colors cursor-pointer"
+                  onClick={() => setAccountId(String(a.account_id))}
+                >
+                  <td className="px-5 py-3">
+                    <div className="text-sm text-foreground">
+                      {a.account_name}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono">
+                      {a.institution} · as of {a.as_of}
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 text-sm font-mono text-right tabular-nums">
+                    {formatCAD(a.live_total_value_cad)}
+                  </td>
+                  <td className="px-5 py-3 text-xs font-mono text-right whitespace-nowrap">
+                    {a.live_unrealized_cad !== null &&
+                    a.live_unrealized_pct !== null ? (
+                      <GainText
+                        amount={a.live_unrealized_cad}
+                        pct={a.live_unrealized_pct}
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">no basis</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
       )}
 
-      {funded.map((account) => (
-        <AccountCard key={account.account_id} account={account} />
-      ))}
-
-      {funded.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 mt-4">
-
-          <AllocationCard title="By Sector" rows={data.allocation.sector} />
-          <AllocationCard
-            title="By Asset Class"
-            rows={data.allocation.asset_class}
-          />
+      {exposure && (
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="bg-muted border border-border rounded-xl p-5">
+            <div className="text-sm font-medium text-foreground mb-1">
+              Sector
+            </div>
+            <div className="text-xs text-muted-foreground mb-4">
+              Seen through to what the funds hold, not the label on the
+              statement.
+            </div>
+            <Breakdown rows={exposure.sectors.slice(0, 9)} />
+            {exposure.securities_without_lookthrough.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-4">
+                {exposure.securities_without_lookthrough.length} holdings have no
+                look-through data and are counted whole under their own label.
+              </p>
+            )}
+          </div>
+          <div className="space-y-4">
+            <div className="bg-muted border border-border rounded-xl p-5">
+              <div className="text-sm font-medium text-foreground mb-4">
+                Asset class
+              </div>
+              <Breakdown rows={exposure.asset_classes} />
+            </div>
+            <div className="bg-muted border border-border rounded-xl p-5">
+              <div className="text-sm font-medium text-foreground mb-4">
+                Currency
+              </div>
+              <Breakdown rows={exposure.currencies} />
+            </div>
+            {exposure.tax.length > 0 && (
+              <div className="bg-muted border border-border rounded-xl p-5">
+                <div className="text-sm font-medium text-foreground mb-1">
+                  Tax treatment
+                </div>
+                <div className="text-xs text-muted-foreground mb-4">
+                  Gains in a registered account are never taxed. Gains in a
+                  taxable one are realised when you sell.
+                </div>
+                <div className="space-y-3">
+                  {exposure.tax.map((t) => (
+                    <div key={t.treatment} className="text-sm">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-foreground">{t.treatment}</span>
+                        <span className="font-mono text-xs tabular-nums">
+                          {formatCAD(t.value_cad, 0)}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+                        <span className="truncate pr-2">
+                          {t.accounts.join(", ")}
+                        </span>
+                        {t.unrealized_cad !== null && (
+                          <span
+                            className={`font-mono tabular-nums whitespace-nowrap ${t.unrealized_cad >= 0 ? "text-primary" : "text-destructive"}`}
+                          >
+                            {t.unrealized_cad >= 0 ? "+" : ""}
+                            {formatCAD(t.unrealized_cad, 0)} unrealized
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {empty.length > 0 && (
-        <div className="bg-muted border border-border rounded-xl p-5 mt-4">
+      <Card
+        title="Positions"
+        note={scope ? "In this account" : "Combined across all accounts"}
+      >
+        <table className="w-full">
+          <thead>
+            <tr>
+              {["Security", "Units", "Market value", "Weight", "Unrealized"].map(
+                (h, i) => (
+                  <th
+                    key={h}
+                    className={`text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-2.5 border-b border-border ${i === 0 ? "text-left" : "text-right"}`}
+                  >
+                    {h}
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {withShare.map((p) => (
+              <PositionRow key={p.security} position={p} scoped={!!scope} />
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      {exposure && exposure.income.by_security.length > 0 && (
+        <Card
+          title="Projected income"
+          note={`${formatCAD(exposure.income.annual_cad)} a year at current distribution rates, a ${exposure.income.yield_pct.toFixed(2)}% yield.`}
+        >
+          <div className="p-5">
+            <Breakdown rows={exposure.income.by_security.slice(0, 8)} />
+          </div>
+        </Card>
+      )}
+
+      {!scope && empty.length > 0 && (
+        <div className="bg-muted border border-border rounded-xl p-5">
           <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-3">
             Awaiting first import
           </div>
@@ -189,246 +441,76 @@ export default function Portfolio() {
   );
 }
 
-function PositionsCard({ positions }: { positions: ConsolidatedPosition[] }) {
-  return (
-    <div className="bg-muted border border-border rounded-xl mb-4">
-      <div className="px-5 py-4 border-b border-border">
-        <div className="text-sm font-medium text-foreground">Positions</div>
-        <div className="text-xs text-muted-foreground mt-0.5">
-          Combined across all accounts
-        </div>
-      </div>
-      <table className="w-full">
-        <thead>
-          <tr>
-            {["Security", "Units", "Market value", "Weight", "Unrealized"].map(
-              (h, i) => (
-                <th
-                  key={h}
-                  className={`text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-2.5 border-b border-border ${i === 0 ? "text-left" : "text-right"}`}
-                >
-                  {h}
-                </th>
-              ),
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {positions.map((p) => (
-            <tr key={p.security} className="hover:bg-background/50 transition-colors">
-              <td className="px-4 py-2.5">
-                <div className="text-sm font-mono text-foreground">
-                  {p.security}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {p.held_in.length > 1
-                    ? p.held_in
-                        .map((h) => `${h.account_name} ${h.units.toLocaleString()}`)
-                        .join(" · ")
-                    : p.description}
-                </div>
-              </td>
-              <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right">
-                {p.units.toLocaleString(undefined, {
-                  maximumFractionDigits: 4,
-                })}
-              </td>
-              <td className="px-4 py-2.5 text-sm font-mono text-foreground text-right whitespace-nowrap">
-                {formatCAD(p.market_value_cad)}
-              </td>
-              <td className="px-4 py-2.5 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <div className="h-1 w-16 bg-background rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary/50 rounded-full"
-                      style={{ width: `${p.percentage}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-mono text-muted-foreground w-10">
-                    {p.percentage.toFixed(1)}%
-                  </span>
-                </div>
-              </td>
-              <td className="px-4 py-2.5 text-sm font-mono text-right whitespace-nowrap">
-                {p.unrealized_gain_cad !== null && p.unrealized_pct !== null ? (
-                  <GainText
-                    amount={p.unrealized_gain_cad}
-                    pct={p.unrealized_pct}
-                  />
-                ) : (
-                  <span className="text-muted-foreground text-xs">n/a</span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/** Most accounts are named after their registration, so the badge would repeat it. */
-function registrationBadge(account: AccountPortfolio): string | null {
-  const kind = account.registered_type;
-  if (!kind || kind === "none") return null;
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
-  return normalize(kind) === normalize(account.account_name) ? null : kind;
-}
-
-function AccountCard({ account }: { account: AccountPortfolio }) {
-  const badge = registrationBadge(account);
-
-  return (
-    <div className="bg-muted border border-border rounded-xl mb-4">
-      <div className="flex items-start justify-between px-5 py-4 border-b border-border">
-        <div>
-          <div className="text-sm font-medium text-foreground">
-            {account.account_name}
-            {badge && (
-              <span className="ml-2 text-xs font-mono text-primary/70">
-                {badge}
-              </span>
-            )}
-          </div>
-          <div className="text-xs text-muted-foreground font-mono mt-0.5">
-            {account.institution} · as of {account.as_of}
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-lg font-mono text-foreground">
-            {formatCAD(account.live_total_value_cad)}
-          </div>
-          <div className="text-xs font-mono">
-            {account.live_unrealized_cad !== null &&
-            account.live_unrealized_pct !== null ? (
-              <GainText
-                amount={account.live_unrealized_cad}
-                pct={account.live_unrealized_pct}
-              />
-            ) : (
-              <span className="text-muted-foreground">no cost basis</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <table className="w-full">
-        <thead>
-          <tr>
-            {["Security", "Units", "Avg cost", "Price", "Market value", "Unrealized"].map(
-              (h, i) => (
-                <th
-                  key={h}
-                  className={`text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-2.5 border-b border-border ${i === 0 ? "text-left" : "text-right"}`}
-                >
-                  {h}
-                </th>
-              ),
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {account.positions.map((p) => (
-            <PositionRow key={p.security} position={p} />
-          ))}
-          {account.cash.map((c) => (
-            <tr key={c.currency} className="text-muted-foreground">
-              <td className="px-4 py-2.5 text-sm font-mono">
-                Cash
-                <span className="ml-1.5 text-xs">{c.currency}</span>
-              </td>
-              <td colSpan={3} />
-              <td className="px-4 py-2.5 text-sm font-mono text-right whitespace-nowrap">
-                {formatCAD(c.amount_cad)}
-                {c.currency !== "CAD" && (
-                  <span className="ml-1 text-xs text-muted-foreground/60">
-                    ({c.amount.toFixed(2)} {c.currency}
-                    {c.rate_missing && ", no rate"})
-                  </span>
-                )}
-              </td>
-              <td />
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function PositionRow({ position: p }: { position: Position }) {
-  const foreign = p.settlement_currency !== "CAD";
+function PositionRow({
+  position: p,
+  scoped,
+}: {
+  position: ConsolidatedPosition;
+  scoped: boolean;
+}) {
   return (
     <tr className="hover:bg-background/50 transition-colors">
       <td className="px-4 py-2.5">
         <div className="text-sm font-mono text-foreground">{p.security}</div>
-        <div className="text-xs text-muted-foreground truncate max-w-xs">
-          {p.description}
-          {p.sector && ` · ${p.sector}`}
+        <div className="text-xs text-muted-foreground truncate max-w-sm">
+          {!scoped && p.held_in.length > 1
+            ? p.held_in
+                .map((h) => `${h.account_name} ${h.units.toLocaleString()}`)
+                .join(" · ")
+            : (p.description ?? p.sector)}
         </div>
       </td>
-      <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right">
-        {p.units.toLocaleString()}
+      <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right tabular-nums">
+        {p.units.toLocaleString(undefined, { maximumFractionDigits: 4 })}
       </td>
-      <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right whitespace-nowrap">
-        {p.average_cost?.toFixed(2)}
-        {foreign && (
-          <span className="ml-1 text-xs text-muted-foreground/60">
-            {p.settlement_currency}
+      <td className="px-4 py-2.5 text-sm font-mono text-foreground text-right whitespace-nowrap tabular-nums">
+        {formatCAD(p.market_value_cad, 0)}
+      </td>
+      <td className="px-4 py-2.5 text-right">
+        <div className="flex items-center justify-end gap-2">
+          <div className="h-1 w-16 bg-background rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${p.percentage}%`,
+                background: "var(--chart-value)",
+              }}
+            />
+          </div>
+          <span className="text-xs font-mono text-muted-foreground w-10 tabular-nums">
+            {p.percentage.toFixed(1)}%
           </span>
-        )}
-      </td>
-      <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground text-right whitespace-nowrap">
-        {p.live_price?.toFixed(2)}
-        {foreign && (
-          <span className="ml-1 text-xs text-muted-foreground/60">
-            {p.settlement_currency}
-          </span>
-        )}
-      </td>
-      <td className="px-4 py-2.5 text-sm font-mono text-foreground text-right whitespace-nowrap">
-        {formatCAD(p.live_value_cad ?? p.market_value_cad)}
+        </div>
       </td>
       <td className="px-4 py-2.5 text-sm font-mono text-right whitespace-nowrap">
-        {p.unrealized_gain_cad !== null && p.book_value_cad !== null && (
-          <GainText
-            amount={p.unrealized_gain_cad}
-            pct={
-              p.book_value_cad === 0
-                ? 0
-                : (p.unrealized_gain_cad / p.book_value_cad) * 100
-            }
-          />
+        {p.unrealized_gain_cad !== null && p.unrealized_pct !== null ? (
+          <GainText amount={p.unrealized_gain_cad} pct={p.unrealized_pct} />
+        ) : (
+          <span className="text-muted-foreground text-xs">n/a</span>
         )}
       </td>
     </tr>
   );
 }
 
-function AllocationCard({ title, rows }: { title: string; rows: Allocation[] }) {
+function Metric({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
   return (
     <div className="bg-muted border border-border rounded-xl p-5">
-      <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-4">
-        {title}
+      <div className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mb-2">
+        {label}
       </div>
-      <div className="space-y-3">
-        {rows.map((r) => (
-          <div key={r.label}>
-            <div className="flex items-baseline justify-between text-sm mb-1">
-              <span className="text-foreground">{r.label}</span>
-              <span className="font-mono text-muted-foreground text-xs">
-                {r.percentage.toFixed(1)}% · {formatCAD(r.market_value_cad)}
-              </span>
-            </div>
-            <div className="h-1 bg-background rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary/50 rounded-full"
-                style={{ width: `${r.percentage}%` }}
-              />
-            </div>
-          </div>
-        ))}
+      <div className="text-2xl font-light font-mono text-foreground tracking-tight">
+        {value}
       </div>
+      <div className="text-xs text-muted-foreground mt-1.5 truncate">{hint}</div>
     </div>
   );
 }

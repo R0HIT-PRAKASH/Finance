@@ -70,6 +70,10 @@ export const api = {
       request<PerformanceSeries>(
         `/investments/performance${accountId ? `?account_id=${accountId}` : ""}`,
       ),
+    exposure: (accountId?: number) =>
+      request<Exposure>(
+        `/investments/exposure${accountId ? `?account_id=${accountId}` : ""}`,
+      ),
     returns: (accountId?: number) =>
       request<ReturnsSummary>(
         `/investments/returns${accountId ? `?account_id=${accountId}` : ""}`,
@@ -316,6 +320,37 @@ export type PerformanceSeries = {
   points: SeriesPoint[];
   benchmark: string | null;
   opening_value_cad: number;
+};
+
+export type Slice = {
+  label: string;
+  value_cad: number;
+  percentage: number;
+};
+
+export type Exposure = {
+  sectors: Slice[];
+  asset_classes: Slice[];
+  currencies: Slice[];
+  concentration: {
+    top_position: { security: string; percentage: number } | null;
+    top_five_pct: number;
+    largest_sector: { label: string; percentage: number } | null;
+    positions: number;
+  };
+  tax: {
+    treatment: "Registered" | "Taxable";
+    accounts: string[];
+    value_cad: number;
+    unrealized_cad: number | null;
+  }[];
+  income: {
+    annual_cad: number;
+    yield_pct: number;
+    by_security: Slice[];
+  };
+  /** Securities with no look-through data, so their own sector was used whole. */
+  securities_without_lookthrough: string[];
 };
 
 export type PeriodReturn = {
