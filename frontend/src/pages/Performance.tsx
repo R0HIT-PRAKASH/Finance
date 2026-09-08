@@ -1,38 +1,44 @@
 import { useEffect, useState } from "react";
 import {
-  Area,
+  Bar,
+  BarChart,
   CartesianGrid,
   ComposedChart,
+  LabelList,
   Line,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { api, PerformanceSeries, SeriesPoint } from "../api/client";
+import {
+  api,
+  PerformanceSeries,
+  ReturnsSummary,
+  SeriesPoint,
+} from "../api/client";
 
 const AXIS = "var(--chart-axis)";
 const GRID = "var(--chart-grid)";
 const VALUE = "var(--chart-value)";
 const BENCH = "var(--chart-benchmark)";
-const INVESTED_FILL = "var(--chart-invested-fill)";
-const INVESTED_STROKE = "var(--chart-invested-stroke)";
+const INCOME = "var(--chart-income)";
+const INVESTED = "var(--chart-invested-stroke)";
 
-function formatCAD(n: number) {
+function formatCAD(n: number, maximumFractionDigits = 0) {
   return new Intl.NumberFormat("en-CA", {
     style: "currency",
     currency: "CAD",
-    maximumFractionDigits: 0,
+    maximumFractionDigits,
   }).format(n);
 }
 
-function formatMonth(iso: string) {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-CA", {
-    month: "short",
-  });
-}
+const formatPct = (n: number) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(1)}%`;
 
-/** Values are all CAD on one scale, so a single shared axis is correct. */
+const formatMonth = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString("en-CA", { month: "short" });
+
 const axisProps = {
   stroke: AXIS,
   tick: { fill: AXIS, fontSize: 11 },
@@ -40,28 +46,27 @@ const axisProps = {
   axisLine: false,
 };
 
-function ChartTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
+function Card({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="bg-background border border-border rounded-lg px-3 py-2 text-xs shadow-lg">
-      <div className="font-mono text-muted-foreground mb-1.5">{label}</div>
-      {payload.map((p: any) => (
-        <div key={p.name} className="flex items-center gap-2 whitespace-nowrap">
-          <span
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ background: p.color }}
-          />
-          <span className="text-muted-foreground">{p.name}</span>
-          <span className="ml-auto font-mono text-foreground">
-            {formatCAD(p.value)}
-          </span>
-        </div>
-      ))}
+    <div className="bg-muted border border-border rounded-xl p-5 mb-4">
+      <div className="text-sm font-medium text-foreground">{title}</div>
+      {note && (
+        <div className="mt-1 mb-4 text-xs text-muted-foreground">{note}</div>
+      )}
+      {!note && <div className="mb-4" />}
+      {children}
     </div>
   );
 }
 
-/** Identity is never carried by colour alone: every series is named here too. */
 function Legend({ items }: { items: { label: string; color: string }[] }) {
   return (
     <div className="flex flex-wrap gap-4 mb-3">
@@ -78,32 +83,51 @@ function Legend({ items }: { items: { label: string; color: string }[] }) {
   );
 }
 
-function Variant({
-  title,
-  note,
-  children,
-}: {
-  title: string;
-  note: string;
-  children: React.ReactNode;
-}) {
+function ValueTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
   return (
-    <div className="bg-muted border border-border rounded-xl p-5 mb-4">
-      <div className="mb-1 text-sm font-medium text-foreground">{title}</div>
-      <div className="mb-4 text-xs text-muted-foreground">{note}</div>
-      {children}
+    <div className="bg-background border border-border rounded-lg px-3 py-2 text-xs shadow-lg">
+      <div className="font-mono text-muted-foreground mb-1.5">{label}</div>
+      {payload.map((p: any) => (
+        <div key={p.name} className="flex items-center gap-3 whitespace-nowrap">
+          <span
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ background: p.color }}
+          />
+          <span className="text-muted-foreground">{p.name}</span>
+          <span className="ml-auto font-mono text-foreground">
+            {formatCAD(p.value)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReturnsTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  return (
+    <div className="bg-background border border-border rounded-lg px-3 py-2 text-xs shadow-lg">
+      <div className="font-mono text-muted-foreground mb-1.5">{row.label}</div>
+      <div className="text-muted-foreground">
+        {row.from} to {row.to}
+      </div>
     </div>
   );
 }
 
 export default function Performance() {
-  const [data, setData] = useState<PerformanceSeries | null>(null);
+  const [series, setSeries] = useState<PerformanceSeries | null>(null);
+  const [returns, setReturns] = useState<ReturnsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.investments
-      .performance()
-      .then(setData)
+    Promise.all([api.investments.performance(), api.investments.returns()])
+      .then(([s, r]) => {
+        setSeries(s);
+        setReturns(r);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -114,7 +138,7 @@ export default function Performance() {
       </div>
     );
   }
-  if (!data || data.points.length === 0) {
+  if (!series || series.points.length === 0) {
     return (
       <div className="text-center py-16 text-muted-foreground text-sm">
         No activity imported yet, so there is nothing to chart.
@@ -122,35 +146,30 @@ export default function Performance() {
     );
   }
 
-  const points = data.points;
+  const points = series.points;
   const last = points[points.length - 1];
-  const contributed = last.invested_cad - data.opening_value_cad;
-  const vsBench = last.benchmark_cad ? last.value_cad - last.benchmark_cad : null;
+  const contributed = last.invested_cad - series.opening_value_cad;
 
-  const common = (
-    <>
-      <CartesianGrid stroke={GRID} vertical={false} />
-      <XAxis dataKey="date" tickFormatter={formatMonth} {...axisProps} />
-      <YAxis
-        tickFormatter={(v) => `${Math.round(v / 1000)}k`}
-        width={48}
-        {...axisProps}
-      />
-      <Tooltip content={<ChartTooltip />} />
-    </>
-  );
+  const sinceStart = returns?.periods.find((p) => p.label === "Since start");
+  const income = returns?.income;
+  const incomeTotal = income
+    ? Math.abs(income.appreciation_cad) + Math.abs(income.distributions_cad)
+    : 0;
+
+  const returnRows = (returns?.periods ?? [])
+    .filter((p) => p.portfolio !== null || p.benchmark !== null)
+    .map((p) => ({ ...p, you: p.portfolio ?? 0, index: p.benchmark ?? 0 }));
 
   return (
     <div>
       <div className="mb-7">
         <h2 className="text-xl font-medium text-foreground">Performance</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Three chart options for the same data. Pick one and I will drop the
-          other two.
+          Growth since {points[0].date}, when the activity record begins.
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-4 gap-4 mb-6">
         <Stat label="Value" value={formatCAD(last.value_cad)} />
         <Stat
           label="Gain"
@@ -158,77 +177,51 @@ export default function Performance() {
           hint={`on ${formatCAD(contributed)} contributed`}
           positive={last.gain_cad >= 0}
         />
-        {vsBench !== null && (
+        {sinceStart?.portfolio != null && (
           <Stat
-            label={`vs ${data.benchmark}`}
-            value={formatCAD(vsBench)}
-            hint={vsBench >= 0 ? "ahead of the index" : "behind the index"}
-            positive={vsBench >= 0}
+            label="Return"
+            value={formatPct(sinceStart.portfolio)}
+            hint="time-weighted"
+            positive={sinceStart.portfolio >= 0}
+          />
+        )}
+        {returns?.xirr != null && (
+          <Stat
+            label="XIRR"
+            value={formatPct(returns.xirr)}
+            hint="annualised, timing included"
+            positive={returns.xirr >= 0}
           />
         )}
       </div>
 
-      <Variant
-        title="Option A: invested as a filled band, value and benchmark as lines"
-        note="The gap between the blue line and the top of the band is your gain. When value dips below the band the position is underwater, which is what happened in April."
+      <Card
+        title="Value and money invested"
+        note="The gap between the two lines is your gain. Where value falls below invested, the portfolio is underwater."
       >
         <Legend
           items={[
             { label: "Portfolio value", color: VALUE },
-            { label: `${data.benchmark} benchmark`, color: BENCH },
-            { label: "Invested", color: INVESTED_STROKE },
+            { label: "Invested", color: INVESTED },
           ]}
         />
-        <ResponsiveContainer width="100%" height={260}>
-          <ComposedChart data={points} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-            {common}
-            <Area
-              dataKey="invested_cad"
-              name="Invested"
-              stroke={INVESTED_STROKE}
-              fill={INVESTED_FILL}
-              strokeWidth={1}
-              dot={false}
-              isAnimationActive={false}
+        <ResponsiveContainer width="100%" height={280}>
+          <ComposedChart
+            data={points}
+            margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
+          >
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="date" tickFormatter={formatMonth} {...axisProps} />
+            <YAxis
+              tickFormatter={(v) => `${Math.round(v / 1000)}k`}
+              width={48}
+              {...axisProps}
             />
-            <Line
-              dataKey="value_cad"
-              name="Portfolio value"
-              stroke={VALUE}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-            <Line
-              dataKey="benchmark_cad"
-              name={`${data.benchmark}`}
-              stroke={BENCH}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </Variant>
-
-      <Variant
-        title="Option B: three plain lines"
-        note="Everything is a peer series. Simplest to read, but how much you put in versus earned is less immediate without a fill."
-      >
-        <Legend
-          items={[
-            { label: "Portfolio value", color: VALUE },
-            { label: `${data.benchmark} benchmark`, color: BENCH },
-            { label: "Invested", color: INVESTED_STROKE },
-          ]}
-        />
-        <ResponsiveContainer width="100%" height={260}>
-          <ComposedChart data={points} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-            {common}
+            <Tooltip content={<ValueTooltip />} />
             <Line
               dataKey="invested_cad"
               name="Invested"
-              stroke={INVESTED_STROKE}
+              stroke={INVESTED}
               strokeWidth={2}
               strokeDasharray="4 3"
               dot={false}
@@ -242,75 +235,115 @@ export default function Performance() {
               dot={false}
               isAnimationActive={false}
             />
-            <Line
-              dataKey="benchmark_cad"
-              name={`${data.benchmark}`}
-              stroke={BENCH}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
           </ComposedChart>
         </ResponsiveContainer>
-      </Variant>
+      </Card>
 
-      <Variant
-        title="Option C: value against benchmark, with gain split out below"
-        note="Gain gets its own axis where negative is natural rather than awkward. Costs you the single glance."
-      >
-        <Legend
-          items={[
-            { label: "Portfolio value", color: VALUE },
-            { label: `${data.benchmark} benchmark`, color: BENCH },
-          ]}
-        />
-        <ResponsiveContainer width="100%" height={190}>
-          <ComposedChart data={points} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-            {common}
-            <Line
-              dataKey="value_cad"
-              name="Portfolio value"
-              stroke={VALUE}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
+      {returnRows.length > 0 && returns && (
+        <Card
+          title={`Return against ${returns.benchmark}`}
+          note="Time-weighted, so deposit size and timing are removed and the two are comparable. The benchmark is a total return including its distributions."
+        >
+          <Legend
+            items={[
+              { label: "You", color: VALUE },
+              { label: returns.benchmark, color: BENCH },
+            ]}
+          />
+          <ResponsiveContainer width="100%" height={40 + returnRows.length * 52}>
+            <BarChart
+              data={returnRows}
+              layout="vertical"
+              margin={{ top: 0, right: 56, bottom: 0, left: 0 }}
+              barGap={2}
+            >
+              <CartesianGrid stroke={GRID} horizontal={false} />
+              <XAxis type="number" tickFormatter={formatPct} {...axisProps} />
+              <YAxis
+                type="category"
+                dataKey="label"
+                width={92}
+                {...axisProps}
+              />
+              <Tooltip content={<ReturnsTooltip />} cursor={false} />
+              <ReferenceLine x={0} stroke={AXIS} />
+              <Bar dataKey="you" name="You" fill={VALUE} radius={[0, 4, 4, 0]}>
+                <LabelList
+                  dataKey="you"
+                  position="right"
+                  formatter={formatPct}
+                  className="fill-foreground"
+                  fontSize={11}
+                />
+              </Bar>
+              <Bar
+                dataKey="index"
+                name={returns.benchmark}
+                fill={BENCH}
+                radius={[0, 4, 4, 0]}
+              >
+                <LabelList
+                  dataKey="index"
+                  position="right"
+                  formatter={formatPct}
+                  className="fill-muted-foreground"
+                  fontSize={11}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          {returnRows.some((r) => r.short_window) && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Windows under three months are mostly noise and say little about
+              how the portfolio is doing.
+            </p>
+          )}
+        </Card>
+      )}
+
+      {income && incomeTotal > 0 && (
+        <Card
+          title="Where the gain came from"
+          note="Price movement against income received. Distributions are cash the holdings paid out, which is why they survive a falling market."
+        >
+          <div className="flex h-3 rounded-full overflow-hidden gap-0.5 mb-4">
+            <div
+              style={{
+                width: `${(Math.abs(income.appreciation_cad) / incomeTotal) * 100}%`,
+                background: VALUE,
+              }}
             />
-            <Line
-              dataKey="benchmark_cad"
-              name={`${data.benchmark}`}
-              stroke={BENCH}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
+            <div
+              style={{
+                width: `${(Math.abs(income.distributions_cad) / incomeTotal) * 100}%`,
+                background: INCOME,
+              }}
             />
-          </ComposedChart>
-        </ResponsiveContainer>
-        <div className="mt-3 mb-2 text-xs text-muted-foreground">
-          Gain over the window
-        </div>
-        <ResponsiveContainer width="100%" height={120}>
-          <ComposedChart data={points} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="date" tickFormatter={formatMonth} {...axisProps} />
-            <YAxis
-              tickFormatter={(v) => `${Math.round(v / 1000)}k`}
-              width={48}
-              {...axisProps}
+          </div>
+          <div className="space-y-2">
+            <IncomeRow
+              color={VALUE}
+              label="Price appreciation"
+              amount={income.appreciation_cad}
+              total={income.total_gain_cad}
             />
-            <Tooltip content={<ChartTooltip />} />
-            <Area
-              dataKey="gain_cad"
-              name="Gain"
-              stroke={VALUE}
-              fill={VALUE}
-              fillOpacity={0.18}
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
+            <IncomeRow
+              color={INCOME}
+              label="Distributions and dividends"
+              amount={income.distributions_cad}
+              total={income.total_gain_cad}
             />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </Variant>
+            {income.withholding_cad !== 0 && (
+              <IncomeRow
+                color={AXIS}
+                label="Withholding tax"
+                amount={income.withholding_cad}
+                total={income.total_gain_cad}
+              />
+            )}
+          </div>
+        </Card>
+      )}
 
       <div className="bg-muted border border-border rounded-xl">
         <div className="px-5 py-4 border-b border-border text-sm font-medium text-foreground">
@@ -319,16 +352,14 @@ export default function Performance() {
         <table className="w-full">
           <thead>
             <tr>
-              {["Date", "Value", "Invested", "Gain", data.benchmark ?? "Benchmark"].map(
-                (h, i) => (
-                  <th
-                    key={h}
-                    className={`text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-2.5 border-b border-border ${i === 0 ? "text-left" : "text-right"}`}
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
+              {["Date", "Value", "Invested", "Gain"].map((h, i) => (
+                <th
+                  key={h}
+                  className={`text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground px-4 py-2.5 border-b border-border ${i === 0 ? "text-left" : "text-right"}`}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -348,14 +379,40 @@ export default function Performance() {
                 >
                   {formatCAD(p.gain_cad)}
                 </td>
-                <td className="px-4 py-2 text-sm font-mono text-right tabular-nums text-muted-foreground">
-                  {p.benchmark_cad !== null ? formatCAD(p.benchmark_cad) : "-"}
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function IncomeRow({
+  color,
+  label,
+  amount,
+  total,
+}: {
+  color: string;
+  label: string;
+  amount: number;
+  total: number;
+}) {
+  const share = total !== 0 ? (amount / total) * 100 : 0;
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span
+        className="w-2.5 h-2.5 rounded-full shrink-0"
+        style={{ background: color }}
+      />
+      <span className="text-muted-foreground">{label}</span>
+      <span className="ml-auto font-mono text-foreground tabular-nums">
+        {formatCAD(amount, 2)}
+      </span>
+      <span className="w-14 text-right font-mono text-xs text-muted-foreground tabular-nums">
+        {share.toFixed(1)}%
+      </span>
     </div>
   );
 }
@@ -387,9 +444,7 @@ function Stat({
       >
         {value}
       </div>
-      {hint && (
-        <div className="text-xs text-muted-foreground mt-1.5">{hint}</div>
-      )}
+      {hint && <div className="text-xs text-muted-foreground mt-1.5">{hint}</div>}
     </div>
   );
 }

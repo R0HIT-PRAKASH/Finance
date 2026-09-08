@@ -22,6 +22,7 @@
        surface (--muted), not the page background. Do not substitute by eye. */
     --chart-value: #2a78d6;
     --chart-benchmark: #eb6834;
+    --chart-income: #1baf7a;
     --chart-invested-fill: #dedcd4;
     --chart-invested-stroke: #b9b7ae;
     --chart-grid: #e1e0d9;
@@ -44,6 +45,7 @@
     /* Stepped for the dark surface, not an automatic flip of the light values. */
     --chart-value: #3987e5;
     --chart-benchmark: #d95926;
+    --chart-income: #199e70;
     --chart-invested-fill: #2f2f2c;
     --chart-invested-stroke: #4a4a45;
     --chart-grid: #2c2c2a;

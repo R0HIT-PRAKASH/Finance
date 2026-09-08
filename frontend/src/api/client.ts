@@ -70,6 +70,10 @@ export const api = {
       request<PerformanceSeries>(
         `/investments/performance${accountId ? `?account_id=${accountId}` : ""}`,
       ),
+    returns: (accountId?: number) =>
+      request<ReturnsSummary>(
+        `/investments/returns${accountId ? `?account_id=${accountId}` : ""}`,
+      ),
   },
   netWorth: () => request<NetWorth>("/net-worth"),
   categorization: {
@@ -312,6 +316,29 @@ export type PerformanceSeries = {
   points: SeriesPoint[];
   benchmark: string | null;
   opening_value_cad: number;
+};
+
+export type PeriodReturn = {
+  label: string;
+  from: string;
+  to: string;
+  /** Time-weighted: strips out deposit size and timing, so it compares to an index. */
+  portfolio: number | null;
+  benchmark: number | null;
+  short_window: boolean;
+};
+
+export type ReturnsSummary = {
+  benchmark: string;
+  periods: PeriodReturn[];
+  /** Money-weighted, annualised. Deposit timing counts here. */
+  xirr: number | null;
+  income: {
+    total_gain_cad: number;
+    appreciation_cad: number;
+    distributions_cad: number;
+    withholding_cad: number;
+  };
 };
 
 export type NetWorth = {
