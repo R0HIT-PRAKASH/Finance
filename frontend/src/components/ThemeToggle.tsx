@@ -1,24 +1,35 @@
-import { useTheme } from "@/contexts/ThemeContext";
-import { Select } from "@/components/ui/select";
+import { ListBox, Select, useTheme } from "@heroui/react";
+
+const THEMES = [
+  { id: "system", name: "System" },
+  { id: "light", name: "Light" },
+  { id: "dark", name: "Dark" },
+];
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="flex items-center gap-2">
-      <label htmlFor="theme-select" className="text-xs text-muted-foreground uppercase tracking-widest font-mono">
-        Theme
-      </label>
-      <Select
-        id="theme-select"
-        value={theme}
-        onChange={(e) => setTheme(e.target.value as "light" | "dark" | "system")}
-        className="w-32"
-      >
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </Select>
-    </div>
+    <Select
+      aria-label="Theme"
+      className="w-32"
+      value={theme}
+      onChange={(value) => value !== null && setTheme(String(value))}
+    >
+      <Select.Trigger>
+        <Select.Value />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover>
+        <ListBox>
+          {THEMES.map((option) => (
+            <ListBox.Item key={option.id} id={option.id} textValue={option.name}>
+              {option.name}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
   );
 }

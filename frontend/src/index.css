@@ -1,65 +1,38 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "@heroui/styles";
 
-@layer base {
-  :root {
-    /* Light mode is the default (no attribute). Dark mode uses [data-theme="dark"]. */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 4%;
-    --muted: 0 0% 94%;
-    --muted-foreground: 0 0% 40%;
-    --border: 0 0% 88%;
-    --primary: 74 60% 38%;
-    --primary-foreground: 0 0% 100%;
-    --accent: 74 60% 38%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 100% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --radius: 0.5rem;
+/* Chart series. Recharts reads these as raw var() strings, so they stay plain
+   custom properties rather than Tailwind theme tokens.
 
-    /* Chart series. Validated for colour-vision deficiency against the card
-       surface (--muted), not the page background. Do not substitute by eye. */
-    --chart-value: #2a78d6;
-    --chart-benchmark: #eb6834;
-    --chart-income: #1baf7a;
-    --chart-invested-fill: #dedcd4;
-    --chart-invested-stroke: #b9b7ae;
-    --chart-grid: #e1e0d9;
-    --chart-axis: #898781;
-  }
-
-  [data-theme="dark"] {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 91%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 53%;
-    --border: 0 0% 16%;
-    --primary: 74 83% 66%;
-    --primary-foreground: 0 0% 4%;
-    --accent: 74 83% 66%;
-    --accent-foreground: 0 0% 4%;
-    --destructive: 0 100% 65%;
-    --destructive-foreground: 0 0% 91%;
-
-    /* Stepped for the dark surface, not an automatic flip of the light values. */
-    --chart-value: #3987e5;
-    --chart-benchmark: #d95926;
-    --chart-income: #199e70;
-    --chart-invested-fill: #2f2f2c;
-    --chart-invested-stroke: #4a4a45;
-    --chart-grid: #2c2c2a;
-    --chart-axis: #898781;
-  }
+   Validated for colour-vision deficiency against the card surface, not the page
+   background. Do not substitute by eye. Values below are carried over unchanged
+   from the pre-HeroUI theme; the surface they were validated against has since
+   changed to HeroUI's --surface, so they are due a re-check. */
+:root {
+  --chart-value: #2a78d6;
+  --chart-benchmark: #eb6834;
+  --chart-income: #1baf7a;
+  --chart-invested-fill: #dedcd4;
+  --chart-invested-stroke: #b9b7ae;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #898781;
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-    font-family: "IBM Plex Sans", sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
+/* HeroUI's useTheme sets both the class and the attribute; match either. */
+.dark,
+[data-theme="dark"] {
+  /* Stepped for the dark surface, not an automatic flip of the light values. */
+  --chart-value: #3987e5;
+  --chart-benchmark: #d95926;
+  --chart-income: #199e70;
+  --chart-invested-fill: #2f2f2c;
+  --chart-invested-stroke: #4a4a45;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #898781;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
 }

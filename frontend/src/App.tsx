@@ -6,7 +6,6 @@ import Transactions from "./pages/Transactions";
 import Rules from "./pages/Rules";
 import Portfolio from "./pages/Portfolio";
 import Performance from "./pages/Performance";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 const navSections: { heading: string | null; items: NavItem[] }[] = [
@@ -31,23 +30,21 @@ const navSections: { heading: string | null; items: NavItem[] }[] = [
 
 type NavItem = { to: string; label: string; icon: string };
 
-function AppContent() {
+export default function App() {
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="w-52 shrink-0 bg-muted border-r border-border flex flex-col py-6">
+      <aside className="w-52 shrink-0 bg-surface border-r border-border flex flex-col py-6">
         <div className="px-5 pb-6 border-b border-border mb-4">
-          <h1 className="text-sm font-semibold tracking-widest text-primary font-mono">
+          <h1 className="text-sm font-semibold tracking-widest text-accent font-mono">
             FINTRACK
           </h1>
-          <span className="text-xs text-muted-foreground font-mono">
-            // personal finance
-          </span>
+          <span className="text-xs text-muted font-mono">// personal finance</span>
         </div>
         <nav>
           {navSections.map((section, i) => (
             <div key={section.heading ?? "root"} className={i > 0 ? "mt-5" : ""}>
               {section.heading && (
-                <div className="px-5 pb-1.5 text-[10px] font-mono font-medium uppercase tracking-widest text-muted-foreground/60">
+                <div className="px-5 pb-1.5 text-[10px] font-mono font-medium uppercase tracking-widest text-muted/60">
                   {section.heading}
                 </div>
               )}
@@ -59,8 +56,8 @@ function AppContent() {
                   className={({ isActive }) =>
                     `flex items-center gap-2.5 px-5 py-2.5 text-sm transition-colors border-l-2 ${
                       isActive
-                        ? "text-primary border-primary bg-primary/10"
-                        : "text-muted-foreground border-transparent hover:text-foreground hover:bg-muted"
+                        ? "text-accent border-accent bg-accent/10"
+                        : "text-muted border-transparent hover:text-foreground hover:bg-default"
                     }`
                   }
                 >
@@ -89,13 +86,5 @@ function AppContent() {
         </div>
       </main>
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
   );
 }
