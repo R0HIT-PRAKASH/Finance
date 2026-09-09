@@ -5,6 +5,7 @@ import {
   Filter,
   LayoutDashboard,
   PieChart,
+  Tags,
   TrendingUp,
   Wallet,
   type LucideIcon,
@@ -14,6 +15,7 @@ import Accounts from "./pages/Accounts";
 import Import from "./pages/Import";
 import Transactions from "./pages/Transactions";
 import Rules from "./pages/Rules";
+import Categories from "./pages/Categories";
 import Portfolio from "./pages/Portfolio";
 import Performance from "./pages/Performance";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -31,6 +33,7 @@ const navSections: { heading: string | null; items: NavItem[] }[] = [
       { to: "/accounts", label: "Accounts", icon: Wallet },
       { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
       { to: "/import", label: "Import", icon: Download },
+      { to: "/categories", label: "Categories", icon: Tags },
       { to: "/rules", label: "Rules", icon: Filter },
     ],
   },
@@ -90,6 +93,7 @@ export default function App() {
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/import" element={<Import />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/categories" element={<Categories />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/performance" element={<Performance />} />

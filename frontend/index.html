@@ -9,7 +9,7 @@
     <div id="root"></div>
     <script>
       // Paints the stored theme before the bundle loads, which useTheme cannot do
-      // from inside React. Mirrors @heroui/react's useTheme exactly — same storage
+      // from inside React. Mirrors @heroui/react's useTheme exactly: same storage
       // key, same resolution, same DOM writes. If it disagreed with the hook, the
       // hook would add its class without removing this one and <html> would carry
       // two themes at once. Keep the two in sync.
