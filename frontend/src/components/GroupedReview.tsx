@@ -6,7 +6,8 @@ import {
   FlatCategory,
   Suggestion,
 } from "../api/client";
-import { Button, Checkbox, ListBox, Select, Table } from "@heroui/react";
+import { Button, Checkbox, Table } from "@heroui/react";
+import { CategoryPicker } from "./CategoryPicker";
 
 type Props = {
   groups: TransactionGroup[];
@@ -14,52 +15,6 @@ type Props = {
   suggestions: Record<string, Suggestion>;
   onApplied: () => void;
 };
-
-function categoryLabel(c: FlatCategory) {
-  return c.parent_name ? `${c.parent_name} › ${c.name}` : c.name;
-}
-
-function CategorySelect({
-  categories,
-  isDisabled,
-  placeholder,
-  onSelect,
-}: {
-  categories: FlatCategory[];
-  isDisabled: boolean;
-  placeholder: string;
-  onSelect: (categoryId: number) => void;
-}) {
-  return (
-    <Select
-      aria-label="Category"
-      className="w-44"
-      isDisabled={isDisabled}
-      placeholder={placeholder}
-      value={null}
-      onChange={(value) => value !== null && onSelect(Number(value))}
-    >
-      <Select.Trigger>
-        <Select.Value />
-        <Select.Indicator />
-      </Select.Trigger>
-      <Select.Popover>
-        <ListBox>
-          {categories.map((c) => (
-            <ListBox.Item
-              key={c.id}
-              id={String(c.id)}
-              textValue={categoryLabel(c)}
-            >
-              {categoryLabel(c)}
-              <ListBox.ItemIndicator />
-            </ListBox.Item>
-          ))}
-        </ListBox>
-      </Select.Popover>
-    </Select>
-  );
-}
 
 export function GroupedReview({
   groups,
@@ -178,7 +133,7 @@ export function GroupedReview({
                   <Table.Cell>
                     {group.bulk_assignable && (
                       <div className="flex items-center gap-2">
-                        <CategorySelect
+                        <CategoryPicker
                           categories={categories}
                           isDisabled={groupSaving}
                           placeholder={
@@ -252,7 +207,7 @@ export function GroupedReview({
                       </Table.Cell>
                       <Table.Cell>
                         {!group.bulk_assignable && (
-                          <CategorySelect
+                          <CategoryPicker
                             categories={categories}
                             isDisabled={savingKey === `tx-${tx.id}`}
                             placeholder={

@@ -81,7 +81,7 @@ export function Pagination({
             </Select.Popover>
           </Select>
           <span>
-            {from}–{to} of {total}
+            {from}-{to} of {total}
           </span>
         </span>
       </HeroPagination.Summary>

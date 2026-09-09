@@ -11,6 +11,7 @@ import { Button, Checkbox, ListBox, Select, Table } from "@heroui/react";
 import { DatePicker } from "@/components/ui/datepicker";
 import { Pagination } from "@/components/ui/pagination";
 import { GroupedReview } from "../components/GroupedReview";
+import { CategoryPicker } from "../components/CategoryPicker";
 import { getPeriodDates } from "../lib/periods";
 
 const PERIODS = [
@@ -24,10 +25,6 @@ const PERIODS = [
 ];
 
 const ALL_ACCOUNTS = "all";
-
-function categoryLabel(c: FlatCategory) {
-  return c.parent_name ? `${c.parent_name} › ${c.name}` : c.name;
-}
 
 export default function Transactions() {
   const [view, setView] = useState<"list" | "groups">("list");
@@ -348,36 +345,16 @@ export default function Transactions() {
                         </Table.Cell>
                         <Table.Cell>
                           <div className="flex items-center gap-2">
-                            <Select
-                              aria-label="Category"
+                            <CategoryPicker
+                              categories={categories}
                               className="w-44"
                               isDisabled={savingId === tx.id}
                               placeholder="Uncategorized"
-                              value={tx.category_id?.toString() ?? null}
-                              onChange={(value) =>
-                                value !== null &&
-                                handleCategoryChange(tx, String(value))
+                              value={tx.category_id ?? null}
+                              onSelect={(id) =>
+                                handleCategoryChange(tx, String(id))
                               }
-                            >
-                              <Select.Trigger>
-                                <Select.Value />
-                                <Select.Indicator />
-                              </Select.Trigger>
-                              <Select.Popover>
-                                <ListBox>
-                                  {categories.map((c) => (
-                                    <ListBox.Item
-                                      key={c.id}
-                                      id={String(c.id)}
-                                      textValue={categoryLabel(c)}
-                                    >
-                                      {categoryLabel(c)}
-                                      <ListBox.ItemIndicator />
-                                    </ListBox.Item>
-                                  ))}
-                                </ListBox>
-                              </Select.Popover>
-                            </Select>
+                            />
                             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                               <Checkbox
                                 aria-label="Save rule"

@@ -40,6 +40,21 @@ export const api = {
   categories: {
     tree: () => request<CategoryNode[]>("/categories"),
     flat: () => request<FlatCategory[]>("/categories/flat"),
+    create: (data: CreateCategoryInput) =>
+      request<FlatCategory>("/categories", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    rename: (id: number, name: string) =>
+      request<FlatCategory>(`/categories/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+      }),
+    remove: (id: number) =>
+      request<{ reassigned: number; moved_to: number | null }>(
+        `/categories/${id}`,
+        { method: "DELETE" },
+      ),
   },
   health: () => request<{ status: string }>("/health"),
   transactions: {
@@ -142,12 +157,31 @@ export type CategoryNode = {
 
 export type CategoryKind = "income" | "expense" | "transfer";
 
-/** Leaf categories only, parent nodes exist for rollup, not assignment. */
+/**
+ * Every category is assignable, parents included. Filing an ambiguous
+ * transaction on its parent is more honest than guessing a leaf, and rollups
+ * group by root_id so mixed depth costs nothing.
+ */
 export type FlatCategory = {
   id: number;
   name: string;
   kind: CategoryKind;
+  parent_id: number | null;
   parent_name: string | null;
+  /** Top-level ancestor: what a sector rollup groups by. */
+  root_id: number;
+  root_name: string;
+  depth: number;
+  path: string;
+  is_leaf: boolean;
+  transaction_count: number;
+};
+
+export type CreateCategoryInput = {
+  name: string;
+  parent_id: number | null;
+  /** Required only for a new top-level sector; children inherit it. */
+  kind?: CategoryKind;
 };
 
 export type Transaction = {

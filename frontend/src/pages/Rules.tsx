@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Rule, FlatCategory } from "../api/client";
-import {
-  Button,
-  Input,
-  ListBox,
-  Select,
-  Table,
-  TextField,
-} from "@heroui/react";
+import { Button, Input, Table, TextField } from "@heroui/react";
+import { CategoryPicker } from "../components/CategoryPicker";
 
 function categoryLabel(
   parent: string | null | undefined,
@@ -97,32 +91,11 @@ export default function Rules() {
         >
           <Input placeholder="Pattern, e.g. TIM HORTONS" />
         </TextField>
-        <Select
-          aria-label="Category"
-          className="w-56"
-          placeholder="Select category"
-          value={categoryId || null}
-          onChange={(value) => setCategoryId(value ? String(value) : "")}
-        >
-          <Select.Trigger>
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              {categories.map((c) => (
-                <ListBox.Item
-                  key={c.id}
-                  id={String(c.id)}
-                  textValue={categoryLabel(c.parent_name, c.name)}
-                >
-                  {categoryLabel(c.parent_name, c.name)}
-                  <ListBox.ItemIndicator />
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
-        </Select>
+        <CategoryPicker
+          categories={categories}
+          value={categoryId ? parseInt(categoryId) : null}
+          onSelect={(id) => setCategoryId(String(id))}
+        />
         <Button
           isDisabled={!pattern.trim() || !categoryId}
           onPress={handleCreate}
