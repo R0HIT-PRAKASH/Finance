@@ -70,6 +70,8 @@ export const api = {
       request<PerformanceSeries>(
         `/investments/performance${accountId ? `?account_id=${accountId}` : ""}`,
       ),
+    planSummaries: () =>
+      request<PlanPeriodSummary[]>("/investments/plan-summary"),
     exposure: (accountId?: number) =>
       request<Exposure>(
         `/investments/exposure${accountId ? `?account_id=${accountId}` : ""}`,
@@ -351,6 +353,21 @@ export type Exposure = {
   };
   /** Securities with no look-through data, so their own sector was used whole. */
   securities_without_lookthrough: string[];
+};
+
+/**
+ * Group plans publish a period summary but no usable ledger, so this is the
+ * only contribution-versus-growth split available for those accounts.
+ */
+export type PlanPeriodSummary = {
+  account: string;
+  institution: string;
+  period_start: string;
+  period_end: string;
+  opening_value_cad: number;
+  contributions_cad: number;
+  market_change_cad: number;
+  closing_value_cad: number;
 };
 
 export type PeriodReturn = {

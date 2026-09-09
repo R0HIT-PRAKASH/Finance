@@ -16,6 +16,7 @@ import { Table } from "@heroui/react";
 import {
   api,
   PerformanceSeries,
+  PlanPeriodSummary,
   ReturnsSummary,
   SeriesPoint,
 } from "../api/client";
@@ -119,13 +120,19 @@ function ReturnsTooltip({ active, payload }: any) {
 export default function Performance() {
   const [series, setSeries] = useState<PerformanceSeries | null>(null);
   const [returns, setReturns] = useState<ReturnsSummary | null>(null);
+  const [plans, setPlans] = useState<PlanPeriodSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.investments.performance(), api.investments.returns()])
-      .then(([s, r]) => {
+    Promise.all([
+      api.investments.performance(),
+      api.investments.returns(),
+      api.investments.planSummaries(),
+    ])
+      .then(([s, r, p]) => {
         setSeries(s);
         setReturns(r);
+        setPlans(p);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -338,6 +345,65 @@ export default function Performance() {
                 total={income.total_gain_cad}
               />
             )}
+          </div>
+        </Card>
+      )}
+
+      {plans.length > 0 && (
+        <Card
+          title="Group plans"
+          note="These are excluded from the chart above: they publish a period summary rather than a transaction ledger, so their growth is stated rather than reconstructed."
+        >
+          <div className="space-y-5">
+            {plans.map((p) => {
+              const total =
+                Math.abs(p.contributions_cad) + Math.abs(p.market_change_cad);
+              return (
+                <div key={`${p.account}-${p.period_end}`}>
+                  <div className="flex items-baseline justify-between mb-2">
+                    <div>
+                      <span className="text-sm text-foreground">
+                        {p.account}
+                      </span>
+                      <span className="ml-2 text-xs text-muted font-mono">
+                        {p.period_start} to {p.period_end}
+                      </span>
+                    </div>
+                    <span className="text-sm font-mono text-foreground tabular-nums">
+                      {formatCAD(p.closing_value_cad)}
+                    </span>
+                  </div>
+                  {total > 0 && (
+                    <div className="flex h-2 rounded-full overflow-hidden gap-0.5 mb-2">
+                      <div
+                        style={{
+                          width: `${(Math.abs(p.contributions_cad) / total) * 100}%`,
+                          background: INVESTED,
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: `${(Math.abs(p.market_change_cad) / total) * 100}%`,
+                          background: VALUE,
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
+                    <span>Opened at {formatCAD(p.opening_value_cad)}</span>
+                    <span>Contributed {formatCAD(p.contributions_cad)}</span>
+                    <span
+                      className={
+                        p.market_change_cad >= 0 ? "text-success" : "text-danger"
+                      }
+                    >
+                      Market {p.market_change_cad >= 0 ? "+" : ""}
+                      {formatCAD(p.market_change_cad)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}
